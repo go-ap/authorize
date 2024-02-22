@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net/http"
+	"github.com/go-ap/authorize"
+	"github.com/go-ap/client"
+	"github.com/go-chi/chi/v5"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -13,7 +14,6 @@ import (
 	w "git.sr.ht/~mariusor/wrapper"
 	"github.com/alecthomas/kong"
 	"github.com/go-ap/authorize/internal/config"
-	"github.com/go-ap/processing"
 )
 
 var Auth struct {
@@ -51,7 +51,7 @@ func exit(errs ...error) {
 func main() {
 	ktx := kong.Parse(&Auth, kong.Bind(l))
 
-	stores := make([]processing.ReadStore, 0)
+	stores := make([]authorize.FullStorage, 0)
 	for _, sto := range Auth.Storage {
 		typ, path := config.ParseStorageDsn(sto)
 
@@ -62,15 +62,46 @@ func main() {
 		conf := config.Storage{Type: typ, Path: path}
 		db, err := config.NewStorage(conf, l)
 		if err != nil {
-			exit(fmt.Errorf("unable to initialize storage backend: %w", err))
-			return
+			l.Errorf("unable to initialize storage backend [%s]%s: %w", typ, path, err)
+			continue
 		}
-		stores = append(stores, db)
+		fs, ok := db.(authorize.FullStorage)
+		if !ok {
+			l.Errorf("invalid storage backend %T [%s]%s", db, typ, path)
+			continue
+		}
+		stores = append(stores, fs)
 	}
 
-	m := http.NewServeMux()
+	env := config.DEV
 
-	setters := []w.SetFn{w.Handler(m)}
+	r := chi.NewMux()
+
+	h := authorize.Service{
+		Stores: stores,
+		Client: client.New(
+			client.WithLogger(l.WithContext(lw.Ctx{"log": "client"})),
+			client.SkipTLSValidation(!env.IsProd()),
+		),
+		Logger: l.WithContext(lw.Ctx{"log": "auth-service"}),
+	}
+
+	r.Route("/oauth", func(r chi.Router) {
+		// Authorization code endpoint
+		r.Get("/authorize", h.Authorize)
+		r.Post("/authorize", h.Authorize)
+		// Access token endpoint
+		r.Post("/token", h.Token)
+
+		r.Group(func(r chi.Router) {
+			r.Get("/login", h.ShowLogin)
+			r.Post("/login", h.HandleLogin)
+			r.Get("/pw", h.ShowChangePw)
+			r.Post("/pw", h.HandleChangePw)
+		})
+	})
+
+	setters := []w.SetFn{w.Handler(r)}
 
 	if len(Auth.CertPath)+len(Auth.KeyPath) > 0 {
 		setters = append(setters, w.WithTLSCert(Auth.CertPath, Auth.KeyPath))
