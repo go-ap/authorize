@@ -1,0 +1,6 @@
+.idea/
+bin/
+*.orig
+go.sum
+*.coverprofile
+vendor/
