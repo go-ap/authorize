@@ -8,7 +8,7 @@ _listen_port=${PORT:-3003}
 _version=${VERSION}
 
 _image_name=${1:-${_hostname}:${_environment}}
-_build_name=${2:-localhost/authorize/builder}
+_build_name=${2:-localhost/auth/builder}
 
 _builder=$(buildah from "${_build_name}":latest)
 if [[ -z "${_builder}" ]]; then

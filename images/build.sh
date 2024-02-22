@@ -3,7 +3,7 @@
 #set -x
 
 _workdir=${1:-../}
-_image_name=${2:-authorize/builder}
+_image_name=${2:-auth/builder}
 
 _context=$(realpath "${_workdir}")
 

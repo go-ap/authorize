@@ -27,19 +27,19 @@ clean:
 	@-$(RM) authorize.{key,crt,pem}
 
 builder:
-	./build.sh .. authorize/builder
+	./build.sh .. auth/builder
 
 build:
 	ENV=$(ENV) VERSION=$(VERSION) STORAGE=$(STORAGE) PORT=$(PORT) APP_HOSTNAME=$(APP_HOSTNAME) ./image.sh $(APP_HOSTNAME)/app:$(TAG)
 
 push: build
-	$(TAG_CMD) $(APP_HOSTNAME)/app:$(TAG) quay.io/go-ap/authorize:$(TAG)
-	$(PUSH_CMD) quay.io/go-ap/authorize:$(TAG)
+	$(TAG_CMD) $(APP_HOSTNAME)/app:$(TAG) quay.io/go-ap/auth:$(TAG)
+	$(PUSH_CMD) quay.io/go-ap/auth:$(TAG)
 ifeq ($(TAG),dev)
-	$(TAG_CMD) $(APP_HOSTNAME)/app:$(TAG) quay.io/go-ap/authorize:latest || true
-	$(PUSH_CMD) quay.io/go-ap/authorize:latest || true
+	$(TAG_CMD) $(APP_HOSTNAME)/app:$(TAG) quay.io/go-ap/auth:latest || true
+	$(PUSH_CMD) quay.io/go-ap/auth:latest || true
 endif
 ifneq ($(VERSION),)
-	$(TAG_CMD) $(APP_HOSTNAME)/app:$(ENV) quay.io/go-ap/authorize:$(VERSION)-$(TAG) || true
-	$(PUSH_CMD) quay.io/go-ap/authorize:$(VERSION)-$(TAG) || true
+	$(TAG_CMD) $(APP_HOSTNAME)/app:$(ENV) quay.io/go-ap/auth:$(VERSION)-$(TAG) || true
+	$(PUSH_CMD) quay.io/go-ap/auth:$(VERSION)-$(TAG) || true
 endif
