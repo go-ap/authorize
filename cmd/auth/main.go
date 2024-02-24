@@ -86,7 +86,7 @@ func main() {
 		Logger: l.WithContext(lw.Ctx{"log": "auth-service"}),
 	}
 
-	r.Route("/oauth", func(r chi.Router) {
+	routes := func(r chi.Router) {
 		// Authorization code endpoint
 		r.Get("/authorize", h.Authorize)
 		r.Post("/authorize", h.Authorize)
@@ -99,7 +99,10 @@ func main() {
 			r.Get("/pw", h.ShowChangePw)
 			r.Post("/pw", h.HandleChangePw)
 		})
-	})
+	}
+
+	r.Route("/actors/{id}/oauth", routes)
+	r.Route("/oauth", routes)
 
 	setters := []w.SetFn{w.Handler(r)}
 

@@ -415,6 +415,26 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if c := chi.URLParam(r, "id"); c != "" {
+		proto := "http"
+		if r.TLS != nil {
+			proto = "https"
+		}
+		u := fmt.Sprintf("%s://%s%s", proto, r.Host, r.RequestURI)
+		if actorUrl, err := url.ParseRequestURI(u); err == nil {
+			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]
+			actorUrl.RawQuery = ""
+			actorUrl.Fragment = ""
+			if loader, ok := a.Storage.(processing.ReadStore); ok {
+				if it, err := loader.Load(vocab.IRI(actorUrl.String())); err == nil {
+					if act, err := vocab.ToActor(it); err == nil {
+						actor = act
+					}
+				}
+			}
+		}
+	}
+
 	var overrideRedir = false
 
 	if ar := a.HandleAuthorizeRequest(resp, r); ar != nil {
