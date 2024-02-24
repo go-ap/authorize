@@ -173,7 +173,7 @@ func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage,
 
 func (s Service) server(req *http.Request) (*auth.Server, error) {
 	app, db, err := s.findMatchingStorage(req.Host)
-	if err == nil {
+	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
 	}
 	if db == nil {
@@ -399,6 +399,8 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
 	if err != nil {
+		s.Logger.Errorf("%s", errNotFound)
+		errors.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 	resp := a.NewResponse()
@@ -525,6 +527,11 @@ var AnonymousAcct = account{
 
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
+	if err != nil {
+		s.Logger.Errorf("%s", errNotFound)
+		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		return
+	}
 
 	resp := a.NewResponse()
 	defer resp.Close()
