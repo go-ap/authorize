@@ -21,7 +21,7 @@ import (
 )
 
 var Auth struct {
-	ListenOn string   `required:"" name:"listen" help:"The socket to listen on." default:"localhost:3666"`
+	ListenOn string   `name:"listen" help:"The socket to listen on."`
 	Env      string   `name:"env" help:"Environment type: ${env_types}" default:"${default_env}"`
 	KeyPath  string   `name:"key-path" help:"SSL key path for HTTPS." type:"path"`
 	CertPath string   `name:"cert-path" help:"SSL cert path for HTTPS." type:"path"`
@@ -190,12 +190,18 @@ func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]autho
 			errs = append(errs, err)
 			continue
 		}
+
 		opts, err := config.LoadFromEnv(env, defaultTimeout)
-		st := opts.Storage
 		if err != nil {
 			errs = append(errs, fmt.Errorf("unable to load configuration %s: %w", p, err))
 			continue
 		}
+
+		if opts.Listen != "" && Auth.ListenOn == "" {
+			Auth.ListenOn = opts.Listen
+		}
+
+		st := opts.Storage
 		db, err := config.NewStorage(opts.Storage, opts.Env, l)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("unable to initialize storage backend [%s]%s: %w", st.Type, st.Path, err))
