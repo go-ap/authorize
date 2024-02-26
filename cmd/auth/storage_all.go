@@ -4,6 +4,7 @@ package main
 
 import (
 	"git.sr.ht/~mariusor/lw"
+	"github.com/go-ap/authorize/internal/config"
 	"github.com/go-ap/errors"
 	"github.com/go-ap/processing"
 	badger "github.com/go-ap/storage-badger"
@@ -53,13 +54,13 @@ func getFsStorage(c Config, l lw.Logger) (processing.Store, error) {
 
 func Storage(c Config, l lw.Logger) (processing.Store, error) {
 	switch c.Storage {
-	case StorageBoltDB:
+	case config.StorageBoltDB:
 		return getBoltStorage(c, l)
-	case StorageBadger:
+	case config.StorageBadger:
 		return getBadgerStorage(c, l)
-	case StorageSqlite:
+	case config.StorageSqlite:
 		return getSqliteStorage(c, l)
-	case StorageFS:
+	case config.StorageFS:
 		return getFsStorage(c, l)
 	}
 	return nil, errors.NotImplementedf("Invalid storage type %s", c.Storage)

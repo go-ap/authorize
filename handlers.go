@@ -403,6 +403,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
+
 	resp := a.NewResponse()
 	defer resp.Close()
 
