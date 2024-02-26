@@ -403,11 +403,18 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	return act, nil
 }
 
+func reqUrl(r *http.Request) string {
+	proto := "http"
+	if r.TLS != nil {
+		proto = "https"
+	}
+	return fmt.Sprintf("%s://%s%s", proto, r.Host, r.RequestURI)
+}
+
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 
@@ -418,18 +425,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	if s.IsValidRequest(r) {
 		if actor, err = s.ValidateClient(r); err != nil {
 			resp.SetError(osin.E_INVALID_REQUEST, err.Error())
-			redirectOrOutput(resp, w, r)
+			s.redirectOrOutput(resp, w, r)
 			return
 		}
 	}
 
 	if c := chi.URLParam(r, "id"); c != "" {
-		proto := "http"
-		if r.TLS != nil {
-			proto = "https"
-		}
-		u := fmt.Sprintf("%s://%s%s", proto, r.Host, r.RequestURI)
-		if actorUrl, err := url.ParseRequestURI(u); err == nil {
+		if actorUrl, err := url.ParseRequestURI(reqUrl(r)); err == nil {
 			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]
 			actorUrl.RawQuery = ""
 			actorUrl.Fragment = ""
@@ -466,7 +468,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			acc, err := s.loadAccountFromPost(r)
 			if err != nil {
-				errors.HandleError(err).ServeHTTP(w, r)
+				s.HandleError(err).ServeHTTP(w, r)
 				return
 			}
 			if acc != nil {
@@ -479,7 +481,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	if overrideRedir {
 		resp.Type = osin.DATA
 	}
-	redirectOrOutput(resp, w, r)
+	s.redirectOrOutput(resp, w, r)
 }
 
 func checkPw(it vocab.Item, pw []byte, pwLoader PasswordChanger) (*account, error) {
@@ -556,8 +558,7 @@ var AnonymousAcct = account{
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 
@@ -570,8 +571,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 
 	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 	baseIRI := app.GetLink()
@@ -594,8 +594,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 		actor, err := storage.Load(actorSearchIRI)
 		if err != nil {
-			s.Logger.Errorf("%s", errUnauthorized)
-			errors.HandleError(errUnauthorized).ServeHTTP(w, r)
+			s.HandleError(errUnauthorized).ServeHTTP(w, r)
 			return
 		}
 		if ar.Type == osin.PASSWORD {
@@ -618,7 +617,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					s.Logger.Errorf("%s", err)
 				}
-				errors.HandleError(errUnauthorized).ServeHTTP(w, r)
+				s.HandleError(errUnauthorized).ServeHTTP(w, r)
 				return
 			}
 			ar.Authorized = acc.IsLogged()
@@ -635,7 +634,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 		a.FinishAccessRequest(resp, r, ar)
 	}
-	redirectOrOutput(resp, w, r)
+	s.redirectOrOutput(resp, w, r)
 }
 
 func annotatedRsError(status int, old error, msg string, args ...any) error {
@@ -654,10 +653,10 @@ func annotatedRsError(status int, old error, msg string, args ...any) error {
 	return err
 }
 
-func redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request) {
+func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request) {
 	if rs.IsError {
 		err := annotatedRsError(rs.StatusCode, rs.InternalError, "Error processing OAuth2 request: %s", rs.StatusText)
-		errors.HandleError(err).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 	// Add headers
@@ -672,7 +671,7 @@ func redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request)
 		url, err := rs.GetRedirectUrl()
 		if err != nil {
 			err := annotatedRsError(http.StatusInternalServerError, err, "Error getting OAuth2 redirect URL")
-			errors.HandleError(err).ServeHTTP(w, r)
+			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 
@@ -686,7 +685,7 @@ func redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request)
 
 		encoder := json.NewEncoder(w)
 		if err := encoder.Encode(rs.Output); err != nil {
-			errors.HandleError(err).ServeHTTP(w, r)
+			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 	}
@@ -755,6 +754,13 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 	}
 }
 
+func (s *Service) HandleError(e error) http.HandlerFunc {
+	s.Logger.Errorf("%+s", e)
+	return func(w http.ResponseWriter, r *http.Request) {
+		errRenderer.HTML(w, errors.HttpStatus(e), "error", e)
+	}
+}
+
 func name(act *vocab.Actor) string {
 	n := act.Name.First().String()
 	if act.PreferredUsername != nil {
@@ -782,8 +788,7 @@ func (s *Service) ShowLogin(w http.ResponseWriter, r *http.Request) {
 
 	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 	baseIRI := app.GetLink()
@@ -791,12 +796,12 @@ func (s *Service) ShowLogin(w http.ResponseWriter, r *http.Request) {
 	if id := chi.URLParam(r, "id"); id != "" {
 		actor, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(id))
 		if err != nil {
-			errors.HandleError(err).ServeHTTP(w, r)
+			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 		// NOTE(marius): we allow only actors to login using oauth page
 		if actor.Type != vocab.PersonType {
-			errors.HandleError(errNotFound).ServeHTTP(w, r)
+			s.HandleError(errNotFound).ServeHTTP(w, r)
 			return
 		}
 
@@ -807,7 +812,7 @@ func (s *Service) ShowLogin(w http.ResponseWriter, r *http.Request) {
 	if clientId := r.FormValue("client"); len(clientId) > 0 {
 		app, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(clientId))
 		if err != nil {
-			errors.HandleError(errors.NotFoundf("client application not found")).ServeHTTP(w, r)
+			s.HandleError(errors.NotFoundf("client application not found")).ServeHTTP(w, r)
 			return
 		}
 		if app.Type == vocab.ApplicationType {
@@ -827,14 +832,13 @@ var (
 func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	acc, err := s.loadAccountFromPost(r)
 	if err != nil {
-		errors.HandleError(err).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
 	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 	baseIRI := app.GetLink()
@@ -890,14 +894,13 @@ func (p pwChange) Account() vocab.Actor {
 func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 	actor := s.loadActorFromOauth2Session(w, r)
 	if actor == nil {
-		errors.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+		s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
 		return
 	}
 
 	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 	baseIRI := app.GetLink()
@@ -905,11 +908,11 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 	if id := chi.URLParam(r, "id"); id != "" {
 		act, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(id))
 		if err != nil {
-			errors.HandleError(err).ServeHTTP(w, r)
+			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 		if !act.GetID().Equals(actor.GetID(), true) {
-			errors.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+			s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
 			return
 		}
 	}
@@ -927,7 +930,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	actor := s.loadActorFromOauth2Session(w, r)
 	if actor == nil {
 		s.Logger.Errorf("Unable to load actor from session")
-		errors.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+		s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
 		return
 	}
 	tok := r.URL.Query().Get("s")
@@ -935,7 +938,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	pw := r.PostFormValue("pw")
 	pwConf := r.PostFormValue("pw-confirm")
 	if pw != pwConf {
-		errors.HandleError(errors.Newf("Different passwords submitted")).ServeHTTP(w, r)
+		s.HandleError(errors.Newf("Different passwords submitted")).ServeHTTP(w, r)
 		return
 	}
 
@@ -946,14 +949,12 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 
 	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
 	}
 
 	if err = storage.PasswordSet(actor, []byte(pw)); err != nil {
-		s.Logger.Errorf("Error when saving password: %s", err)
-		errors.HandleError(errors.NotValidf("Unable to change password")).ServeHTTP(w, r)
+		s.HandleError(errors.NotValidf("Unable to change password")).ServeHTTP(w, r)
 		return
 	}
 	storage.RemoveAuthorize(tok)
@@ -964,49 +965,41 @@ func (s *Service) loadActorFromOauth2Session(w http.ResponseWriter, r *http.Requ
 	// TODO(marius): we land on this handler, coming from an email link containing a token identifying the Actor
 	tok := r.URL.Query().Get("s")
 	if len(tok) == 0 {
-		s.Logger.Errorf("Unable to load token from URL")
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.Logger.Errorf("%s", errNotFound)
-		errors.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return nil
 	}
 
 	authSess, err := storage.LoadAuthorize(tok)
 	if err != nil {
-		s.Logger.Errorf("Error when loading authorize session: %s", err)
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	if authSess == nil {
-		s.Logger.Errorf("Invalid authorize session for tok %s", tok)
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	if authSess.ExpireAt().Sub(time.Now().UTC()) < 0 {
-		s.Logger.Errorf("Authorize token %s is expired %s", tok, authSess.ExpireAt().Format("2006-01-02 15:04:05"))
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	if authSess.UserData == nil {
-		s.Logger.Errorf("Invalid authorize session for tok %s, user-data is empty", tok)
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 
 	actorIRI, err := assertToBytes(authSess.UserData)
 	if err != nil {
-		s.Logger.Errorf("Invalid authorize session for tok %s, user-data is not an IRI: %v", tok, authSess.UserData)
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	ob, err := storage.Load(vocab.IRI(actorIRI))
 	if err != nil || ob == nil {
-		s.Logger.Errorf("Error when loading actor from storage: %s", err)
-		errors.HandleError(notF).ServeHTTP(w, r)
+		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
 	var actor *vocab.Actor

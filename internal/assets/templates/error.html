@@ -16,11 +16,8 @@
 {{range $i, $err := $errs }}
 <li>{{$err.Message}}
 {{ if $err.Trace }}
-<details>
-<summary>{{if $err.Location}}Location : {{$err.Location}}{{else}}Details{{end}}</summary>
-<code>{{ range $line := $err.Trace}}
-{{$line.File}}:{{$line.Line}} {{$line.Callee}}<br/>
-{{end}}</code>
+<details><summary>Details</summary>
+<pre><code>{{$err.Trace | printf "%+v"}}</code></pre>
 </details>
 {{end}}
 </li>
