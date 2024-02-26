@@ -78,7 +78,7 @@ type Service struct {
 // GenerateID creates an IRI that can be used to uniquely identify the "it" item, based on the collection "col" and
 // its creator "by"
 func (s Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.ID, error) {
-	app, _, err := s.findMatchingStorage(it.GetLink().String())
+	app, _, err := s.findMatchingStorage(iriBaseURL(it.GetLink()))
 	if err != nil {
 		return "", errors.NewNotFound(err, "not found")
 	}
@@ -151,7 +151,6 @@ func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage,
 	var app vocab.Actor
 	for _, db := range s.Stores {
 		for _, host := range hosts {
-			host = "https://" + host + "/"
 			res, err := db.Load(vocab.IRI(host))
 			if err != nil {
 				continue
@@ -172,7 +171,7 @@ func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage,
 }
 
 func (s Service) server(req *http.Request) (*auth.Server, error) {
-	app, db, err := s.findMatchingStorage(req.Host)
+	app, db, err := s.findMatchingStorage(baseURL(req))
 	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
 	}
@@ -247,7 +246,7 @@ func (s Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 		return nil, err
 	}
 
-	app, storage, err := s.findMatchingStorage(r.Host)
+	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		return nil, err
 	}
@@ -315,8 +314,16 @@ func (s Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 
 var scopeAnonymousUserCreate = "anonUserCreate"
 
+func iriBaseURL(iri vocab.IRI) string {
+	u, _ := iri.URL()
+	u.Path = "/"
+	u.RawQuery = ""
+	u.RawFragment = ""
+	return u.String()
+}
+
 func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
-	_, storage, err := s.findMatchingStorage(iri.String())
+	_, storage, err := s.findMatchingStorage(iriBaseURL(iri))
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +378,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 
 	//a := ap.Self(i.baseIRI)
 
-	app, storage, err := s.findMatchingStorage(r.Host)
+	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +568,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, storage, err := s.findMatchingStorage(r.Host)
+	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
@@ -756,12 +763,24 @@ func name(act *vocab.Actor) string {
 	return n
 }
 
+func baseURL(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	proto := "http"
+	if r.TLS != nil {
+		proto = "https"
+	}
+	path := "/"
+	return fmt.Sprintf("%s://%s%s", proto, r.Host, path)
+}
+
 // ShowLogin serves GET /login requests
 func (s *Service) ShowLogin(w http.ResponseWriter, r *http.Request) {
 	tit := "Login to FedBOX"
 	m := login{title: tit}
 
-	app, _, err := s.findMatchingStorage(r.Host)
+	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
@@ -812,7 +831,7 @@ func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, _, err := s.findMatchingStorage(r.Host)
+	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
@@ -875,7 +894,7 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, _, err := s.findMatchingStorage(r.Host)
+	app, _, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
@@ -925,7 +944,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 		"pass":   pw,
 	}).Infof("received")
 
-	_, storage, err := s.findMatchingStorage(r.Host)
+	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)
@@ -949,7 +968,7 @@ func (s *Service) loadActorFromOauth2Session(w http.ResponseWriter, r *http.Requ
 		errors.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
-	_, storage, err := s.findMatchingStorage(r.Host)
+	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.Logger.Errorf("%s", errNotFound)
 		errors.HandleError(errNotFound).ServeHTTP(w, r)

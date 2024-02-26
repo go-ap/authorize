@@ -184,7 +184,6 @@ func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize
 func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]authorize.FullStorage, error) {
 	stores := make([]authorize.FullStorage, 0)
 	errs := make([]error, 0)
-	config.Prefix = "fedbox"
 	for _, p := range paths {
 		if err := godotenv.Load(p); err != nil {
 			errs = append(errs, err)
