@@ -12,7 +12,7 @@
 {{- $handle := .Handle }}
 {{ $client := .Client | nameOf -}}
 <main>
-    Client <strong>{{ $client }}</strong> wants to authorize.<br/>
+    Authorization request from client <strong>{{ $client }}</strong>.<br/>
     <form method="post">
         <input type="hidden" name="state" value="{{.State}}" />
         <input type="hidden" name="client" value="{{.Client.ID}}" />
@@ -21,6 +21,7 @@
         <label for="auth-pw">Password: </label><br/>
         <input name="pw" id="auth-pw" type="password" autofocus size="40" required/><br/>
         <button type="submit">Log in</button>
+        <a href="{{ redirectURI }}">Cancel and return</a>
     </form>
 </main>
 <footer></footer>

@@ -781,6 +781,18 @@ func nameOf(it vocab.Item) string {
 
 func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {
 	wrt := bytes.Buffer{}
+
+	renderOptions.Funcs["redirectURI"] = func() string {
+		if r.URL == nil || r.URL.Query() == nil {
+			return ""
+		}
+		q := make(url.Values)
+		q.Set("error", osin.E_UNAUTHORIZED_CLIENT)
+		q.Set("error_description", "user denied authorization request")
+		u, _ := url.QueryUnescape(r.URL.Query().Get("redirect_uri"))
+		u = fmt.Sprintf("%s?%s", u, q.Encode())
+		return u
+	}
 	err := ren.HTML(&wrt, http.StatusOK, name, m, renderOptions)
 	if err == nil {
 		io.Copy(w, &wrt)
@@ -788,7 +800,11 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 	}
 	err = errors.Annotatef(err, "failed to render template")
 	s.Logger.WithContext(lw.Ctx{"template": name, "model": fmt.Sprintf("%T", m)}).Errorf("%+s", err)
-	errRenderer.HTML(w, errors.HttpStatus(err), "error", err)
+	status := errors.HttpStatus(err)
+	if status == 0 {
+		status = http.StatusInternalServerError
+	}
+	errRenderer.HTML(w, status, "error", err)
 }
 
 func (s *Service) HandleError(e error) http.HandlerFunc {
