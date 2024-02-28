@@ -372,11 +372,6 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	pw := secret(r.PostFormValue("pw"))
 	handle := r.PostFormValue("handle")
 
-	s.Logger.WithContext(lw.Ctx{
-		"handle": handle,
-		"pass":   pw,
-	}).Infof("received")
-
 	//a := ap.Self(i.baseIRI)
 
 	app, storage, err := s.findMatchingStorage(baseURL(r))
@@ -398,9 +393,16 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	}
 
 	var act *account
+	var logger = s.Logger.WithContext(lw.Ctx{
+		"handle": handle,
+		"pass":   pw,
+	})
 	if act, err = checkPw(actors, []byte(pw), storage); err != nil {
+		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
 		return nil, err
 	}
+
+	logger.Infof("success")
 	return act, nil
 }
 
