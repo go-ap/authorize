@@ -87,8 +87,6 @@ func main() {
 		r.Post("/token", h.Token)
 
 		r.Group(func(r chi.Router) {
-			r.Get("/login", h.ShowLogin)
-			r.Post("/login", h.HandleLogin)
 			r.Get("/pw", h.ShowChangePw)
 			r.Post("/pw", h.HandleChangePw)
 		})

@@ -1,9 +1,11 @@
 package authorize
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -22,7 +24,6 @@ import (
 	"github.com/mariusor/render"
 	"github.com/openshift/osin"
 	"github.com/pborman/uuid"
-	"golang.org/x/oauth2"
 )
 
 type PasswordChanger interface {
@@ -421,7 +422,12 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	resp := a.NewResponse()
 	defer resp.Close()
 
-	actor := &auth.AnonymousActor
+	loader, ok := a.Storage.(processing.ReadStore)
+	if !ok {
+		s.HandleError(errors.Newf("invalid storage to load actor")).ServeHTTP(w, r)
+		return
+	}
+	var actor vocab.Item = &auth.AnonymousActor
 	if s.IsValidRequest(r) {
 		if actor, err = s.ValidateClient(r); err != nil {
 			resp.SetError(osin.E_INVALID_REQUEST, err.Error())
@@ -435,19 +441,16 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]
 			actorUrl.RawQuery = ""
 			actorUrl.Fragment = ""
-			if loader, ok := a.Storage.(processing.ReadStore); ok {
-				if it, err := loader.Load(vocab.IRI(actorUrl.String())); err == nil {
-					if act, err := vocab.ToActor(it); err == nil {
-						actor = act
-					}
-				}
+			if it, err := loader.Load(vocab.IRI(actorUrl.String())); err == nil {
+				actor = it
 			}
 		}
 	}
 
 	var overrideRedir = false
 
-	if ar := a.HandleAuthorizeRequest(resp, r); ar != nil {
+	ar := a.HandleAuthorizeRequest(resp, r)
+	if ar != nil {
 		if r.Method == http.MethodGet {
 			if ar.Scope == scopeAnonymousUserCreate {
 				// FIXME(marius): this seems like a way to backdoor our selves, we need a better way
@@ -458,8 +461,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			} else {
 				// this is basically the login page, with client being set
 				m := login{title: "Login"}
-				m.account = *actor
-				m.client = ar.Client.GetId()
+				m.account = actor
+
+				// check for existing application actor
+				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseURL(r))).AddPath(ar.Client.GetId())
+				if it, err := loader.Load(clientIRI); err == nil {
+					m.client = it
+				}
 				m.state = ar.State
 
 				s.renderTemplate(r, w, "login", m)
@@ -468,16 +476,15 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		} else {
 			acc, err := s.loadAccountFromPost(r)
 			if err != nil {
-				s.HandleError(err).ServeHTTP(w, r)
-				return
+				resp.SetError(osin.E_ACCESS_DENIED, err.Error())
 			}
 			if acc != nil {
 				ar.Authorized = true
 				ar.UserData = acc.actor.GetLink()
 			}
 		}
-		a.FinishAuthorizeRequest(resp, r, ar)
 	}
+	a.FinishAuthorizeRequest(resp, r, ar)
 	if overrideRedir {
 		resp.Type = osin.DATA
 	}
@@ -614,10 +621,11 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				acc, err = checkPw(actor, []byte(ar.Password), storage)
 			}
 			if err != nil || acc == nil {
-				if err != nil {
-					s.Logger.Errorf("%s", err)
+				if err == nil {
+					err = errUnauthorized
 				}
-				s.HandleError(errUnauthorized).ServeHTTP(w, r)
+				resp.SetError(osin.E_ACCESS_DENIED, err.Error())
+				s.redirectOrOutput(resp, w, r)
 				return
 			}
 			ar.Authorized = acc.IsLogged()
@@ -654,28 +662,25 @@ func annotatedRsError(status int, old error, msg string, args ...any) error {
 }
 
 func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request) {
-	if rs.IsError {
-		err := annotatedRsError(rs.StatusCode, rs.InternalError, "Error processing OAuth2 request: %s", rs.StatusText)
-		s.HandleError(err).ServeHTTP(w, r)
-		return
-	}
-	// Add headers
-	for i, k := range rs.Headers {
-		for _, v := range k {
-			w.Header().Add(i, v)
+	if !rs.IsError {
+		// Add headers
+		for i, k := range rs.Headers {
+			for _, v := range k {
+				w.Header().Add(i, v)
+			}
 		}
 	}
 
 	if rs.Type == osin.REDIRECT {
 		// Output redirect with parameters
-		url, err := rs.GetRedirectUrl()
+		u, err := rs.GetRedirectUrl()
 		if err != nil {
 			err := annotatedRsError(http.StatusInternalServerError, err, "Error getting OAuth2 redirect URL")
 			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 
-		http.Redirect(w, r, url, http.StatusFound)
+		http.Redirect(w, r, u, http.StatusFound)
 	} else {
 		// set content type if the response doesn't already have one associated with it
 		if w.Header().Get("Content-Type") == "" {
@@ -693,16 +698,16 @@ func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *
 
 type login struct {
 	title   string
-	account vocab.Actor
+	account vocab.Item
 	state   string
-	client  string
+	client  vocab.Item
 }
 
 func (l login) Title() string {
 	return l.title
 }
 
-func (l login) Account() vocab.Actor {
+func (l login) Account() vocab.Item {
 	return l.account
 }
 
@@ -710,15 +715,12 @@ func (l login) State() string {
 	return l.state
 }
 
-func (l login) Client() string {
+func (l login) Client() vocab.Item {
 	return l.client
 }
 
 func (l login) Handle() string {
-	if len(l.account.PreferredUsername) == 0 {
-		return ""
-	}
-	return l.account.PreferredUsername.First().String()
+	return nameOf(l.account)
 }
 
 type model interface {
@@ -727,7 +729,7 @@ type model interface {
 
 type authModel interface {
 	model
-	Account() vocab.Actor
+	Account() vocab.Item
 }
 
 var (
@@ -742,16 +744,49 @@ var (
 		HTMLContentType:           "text/html",
 		DisableHTTPErrorRendering: false,
 	}
+	renderOptions = render.HTMLOptions{
+		Funcs: template.FuncMap{"nameOf": nameOf},
+	}
 	errRenderer = render.New(defaultRenderOptions)
 	ren         = render.New(defaultRenderOptions)
+
+	unknownActorHandle = "Unknown"
 )
 
-func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {
-	if err := ren.HTML(w, http.StatusOK, name, m); err != nil {
-		new := errors.Annotatef(err, "failed to render template")
-		s.Logger.WithContext(lw.Ctx{"template": name, "model": fmt.Sprintf("%T", m)}).Errorf(new.Error())
-		errRenderer.HTML(w, http.StatusInternalServerError, "error", new)
+func nameOf(it vocab.Item) string {
+	if vocab.IsNil(it) {
+		return ""
 	}
+	name := unknownActorHandle
+	if vocab.ActorTypes.Contains(it.GetType()) {
+		_ = vocab.OnActor(it, func(act *vocab.Actor) error {
+			if len(act.PreferredUsername) > 0 {
+				name = act.PreferredUsername.First().String()
+			}
+			return nil
+		})
+	}
+	if name == unknownActorHandle {
+		_ = vocab.OnObject(it, func(ob *vocab.Object) error {
+			if len(ob.Name) > 0 {
+				name = ob.Name.First().String()
+			}
+			return nil
+		})
+	}
+	return name
+}
+
+func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {
+	wrt := bytes.Buffer{}
+	err := ren.HTML(&wrt, http.StatusOK, name, m, renderOptions)
+	if err == nil {
+		io.Copy(w, &wrt)
+		return
+	}
+	err = errors.Annotatef(err, "failed to render template")
+	s.Logger.WithContext(lw.Ctx{"template": name, "model": fmt.Sprintf("%T", m)}).Errorf("%+s", err)
+	errRenderer.HTML(w, errors.HttpStatus(err), "error", err)
 }
 
 func (s *Service) HandleError(e error) http.HandlerFunc {
@@ -781,91 +816,10 @@ func baseURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s%s", proto, r.Host, path)
 }
 
-// ShowLogin serves GET /login requests
-func (s *Service) ShowLogin(w http.ResponseWriter, r *http.Request) {
-	tit := "Login to FedBOX"
-	m := login{title: tit}
-
-	app, _, err := s.findMatchingStorage(baseURL(r))
-	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
-		return
-	}
-	baseIRI := app.GetLink()
-
-	if id := chi.URLParam(r, "id"); id != "" {
-		actor, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(id))
-		if err != nil {
-			s.HandleError(err).ServeHTTP(w, r)
-			return
-		}
-		// NOTE(marius): we allow only actors to login using oauth page
-		if actor.Type != vocab.PersonType {
-			s.HandleError(errNotFound).ServeHTTP(w, r)
-			return
-		}
-
-		m.account = *actor
-		tit = fmt.Sprintf("Login to FedBOX as %s", name(actor))
-	}
-
-	if clientId := r.FormValue("client"); len(clientId) > 0 {
-		app, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(clientId))
-		if err != nil {
-			s.HandleError(errors.NotFoundf("client application not found")).ServeHTTP(w, r)
-			return
-		}
-		if app.Type == vocab.ApplicationType {
-			m.client = clientId
-		}
-	}
-
-	s.renderTemplate(r, w, "login", m)
-}
-
 var (
 	errUnauthorized = errors.Unauthorizedf("Invalid username or password")
 	errNotFound     = errors.NotFoundf("actor not found")
 )
-
-// HandleLogin handles POST /login requests
-func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	acc, err := s.loadAccountFromPost(r)
-	if err != nil {
-		s.HandleError(err).ServeHTTP(w, r)
-		return
-	}
-
-	app, _, err := s.findMatchingStorage(baseURL(r))
-	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
-		return
-	}
-	baseIRI := app.GetLink()
-
-	client := r.PostFormValue("client")
-	state := r.PostFormValue("state")
-	endpoints := vocab.Endpoints{
-		OauthAuthorizationEndpoint: vocab.IRI(fmt.Sprintf("%s/oauth/authorize", baseIRI)),
-		OauthTokenEndpoint:         vocab.IRI(fmt.Sprintf("%s/oauth/token", baseIRI)),
-	}
-	if !vocab.IsNil(acc.actor) && acc.actor.Endpoints != nil {
-		if acc.actor.Endpoints.OauthTokenEndpoint != nil {
-			endpoints.OauthTokenEndpoint = acc.actor.Endpoints.OauthTokenEndpoint
-		}
-		if acc.actor.Endpoints.OauthAuthorizationEndpoint != nil {
-			endpoints.OauthAuthorizationEndpoint = acc.actor.Endpoints.OauthAuthorizationEndpoint
-		}
-	}
-	config := oauth2.Config{
-		ClientID: client,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  endpoints.OauthAuthorizationEndpoint.GetLink().String(),
-			TokenURL: endpoints.OauthTokenEndpoint.GetLink().String(),
-		},
-	}
-	http.Redirect(w, r, config.AuthCodeURL(state, oauth2.AccessTypeOnline), http.StatusPermanentRedirect)
-}
 
 type OAuth struct {
 	Provider     string
@@ -879,14 +833,14 @@ type OAuth struct {
 
 type pwChange struct {
 	title   string
-	account vocab.Actor
+	account vocab.Item
 }
 
 func (p pwChange) Title() string {
 	return p.title
 }
 
-func (p pwChange) Account() vocab.Actor {
+func (p pwChange) Account() vocab.Item {
 	return p.account
 }
 
