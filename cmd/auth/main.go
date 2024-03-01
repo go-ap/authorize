@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -38,6 +39,8 @@ type Config struct {
 
 var defaultTimeout = time.Second * 10
 
+var version = "HEAD"
+
 func main() {
 	ktx := kong.Parse(
 		&Auth,
@@ -50,6 +53,10 @@ func main() {
 	env := config.DEV
 	if config.ValidEnv(Auth.Env) {
 		env = config.Env(Auth.Env)
+	}
+
+	if build, ok := debug.ReadBuildInfo(); ok && version == "HEAD" && build.Main.Version != "(devel)" {
+		version = build.Main.Version
 	}
 
 	var stores []authorize.FullStorage
@@ -78,6 +85,12 @@ func main() {
 		),
 		Logger: l.WithContext(lw.Ctx{"log": "auth-service"}),
 	}
+
+	logCtx := lw.Ctx{
+		"version":  version,
+		"listenOn": Auth.ListenOn,
+	}
+	l = l.WithContext(logCtx)
 
 	routes := func(r chi.Router) {
 		// Authorization code endpoint
