@@ -14,6 +14,7 @@
 {{ $client := .Client | nameOf -}}
 <main>
     Authorization request from client <strong>{{ $client }}</strong>.<br/>
+    {{ if IsValid .Client.Icon }}<img src="{{ .Client.Icon.URL }}" />{{ end }}
     <form method="post">
         <fieldset>
             <input type="hidden" name="state" value="{{.State}}" />

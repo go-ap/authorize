@@ -747,7 +747,12 @@ var (
 		DisableHTTPErrorRendering: false,
 	}
 	renderOptions = render.HTMLOptions{
-		Funcs: template.FuncMap{"nameOf": nameOf},
+		Funcs: template.FuncMap{
+			"nameOf": nameOf,
+			"IsValid": func(it vocab.Item) bool {
+				return !vocab.IsNil(it)
+			},
+		},
 	}
 	errRenderer = render.New(defaultRenderOptions)
 	ren         = render.New(defaultRenderOptions)
