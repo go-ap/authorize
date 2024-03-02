@@ -13,7 +13,7 @@ require (
 	github.com/go-ap/storage-boltdb v0.0.0-20240219170525-6f5869e1b32c
 	github.com/go-ap/storage-fs v0.0.0-20240219170454-7d4640188c3d
 	github.com/go-ap/storage-sqlite v0.0.0-20240221132658-4964f2848b8d
-	github.com/go-chi/chi/v5 v5.0.11
+	github.com/go-chi/chi/v5 v5.0.12
 )
 
 require github.com/go-chi/chi v4.1.2+incompatible // indirect
@@ -27,7 +27,7 @@ require (
 	github.com/go-ap/activitypub v0.0.0-20240211124657-820024a66b78
 	github.com/go-ap/cache v0.0.0-20240211125123-3bb4d1c6309b // indirect
 	github.com/go-ap/client v0.0.0-20240211124832-961fcce8d438
-	github.com/go-ap/filters v0.0.0-20240211125015-2de118fbc889
+	github.com/go-ap/filters v0.0.0-20240219215202-3bb92c250e29
 	github.com/go-ap/jsonld v0.0.0-20221030091449-f2a191312c73 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -55,9 +55,9 @@ require (
 	github.com/valyala/fastjson v1.6.4 // indirect
 	go.etcd.io/bbolt v1.3.8 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.19.0 // indirect
+	golang.org/x/crypto v0.20.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/oauth2 v0.17.0
+	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
