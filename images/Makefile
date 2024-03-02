@@ -9,6 +9,7 @@ ENV ?= prod
 APP_HOSTNAME ?= authorize.local
 PORT ?= 4001
 TAG ?= $(ENV)
+VERSION ?= HEAD
 
 BUILD_CMD=buildah bud
 RUN_CMD=podman run
