@@ -128,7 +128,7 @@ func main() {
 
 	// Get start/stop functions for the http server
 	srvRun, srvStop := w.HttpServer(setters...)
-	l.Infof("Listening for authorization requests on %s", Auth.ListenOn)
+	l.Infof("Listening for authorization requests")
 	stopFn := func() {
 		if err := srvStop(ctx); err != nil {
 			l.Errorf("%+v", err)
