@@ -6,13 +6,13 @@ require (
 	git.sr.ht/~mariusor/lw v0.0.0-20230317075520-07e173563bf8
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240210113306-c862d947a747
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20240308123624-7ee9416b31f5
+	github.com/go-ap/auth v0.0.0-20240308130517-d7c860ed754f
 	github.com/go-ap/errors v0.0.0-20240304112515-6077fa9c17b0
-	github.com/go-ap/processing v0.0.0-20240308123728-8c00bd3dda9d
-	github.com/go-ap/storage-badger v0.0.0-20240308123938-9b86f6b8f4e0
-	github.com/go-ap/storage-boltdb v0.0.0-20240308123909-4c1a5aaa68af
-	github.com/go-ap/storage-fs v0.0.0-20240308123852-86fd24d9809d
-	github.com/go-ap/storage-sqlite v0.0.0-20240304123757-6185a0f9b06d
+	github.com/go-ap/processing v0.0.0-20240308130546-81e459b25741
+	github.com/go-ap/storage-badger v0.0.0-20240308130913-48be4b146489
+	github.com/go-ap/storage-boltdb v0.0.0-20240308130820-2c4a8ce2a688
+	github.com/go-ap/storage-fs v0.0.0-20240308130636-e22bea75f060
+	github.com/go-ap/storage-sqlite v0.0.0-20240308135316-0428ee9cbeb7
 	github.com/go-chi/chi/v5 v5.0.12
 )
 
@@ -63,7 +63,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	modernc.org/gc/v3 v3.0.0-20240304020402-f0dba7c97c2b // indirect
-	modernc.org/libc v1.43.0 // indirect
+	modernc.org/libc v1.41.0 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
 	modernc.org/sqlite v1.29.3 // indirect
