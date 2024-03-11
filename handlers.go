@@ -574,10 +574,6 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	resp := a.NewResponse()
 	defer resp.Close()
 
-	if err != nil {
-		return
-	}
-
 	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
 		s.HandleError(errNotFound).ServeHTTP(w, r)
