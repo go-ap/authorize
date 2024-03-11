@@ -15,7 +15,6 @@ BUILD_CMD=buildah bud
 RUN_CMD=podman run
 TAG_CMD=podman tag
 PUSH_CMD=podman push
-COMPOSE_CMD=podman-compose
 
 .PHONY: clean images cert build builder push
 
