@@ -912,17 +912,12 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	}
 	tok := r.URL.Query().Get("s")
 
-	pw := r.PostFormValue("pw")
-	pwConf := r.PostFormValue("pw-confirm")
+	pw := secret(r.PostFormValue("pw"))
+	pwConf := secret(r.PostFormValue("pw-confirm"))
 	if pw != pwConf {
 		s.HandleError(errors.Newf("Different passwords submitted")).ServeHTTP(w, r)
 		return
 	}
-
-	s.Logger.WithContext(lw.Ctx{
-		"handle": actor.PreferredUsername.String(),
-		"pass":   pw,
-	}).Infof("received")
 
 	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
@@ -934,6 +929,12 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 		s.HandleError(errors.NotValidf("Unable to change password")).ServeHTTP(w, r)
 		return
 	}
+
+	s.Logger.WithContext(lw.Ctx{
+		"handle": actor.PreferredUsername.String(),
+		"pass":   pw,
+	}).Infof("Changed pw")
+
 	storage.RemoveAuthorize(tok)
 }
 
