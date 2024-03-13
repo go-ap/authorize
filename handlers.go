@@ -660,7 +660,18 @@ func annotatedRsError(status int, old error, msg string, args ...any) error {
 }
 
 func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *http.Request) {
-	if !rs.IsError {
+	if rs.IsError {
+		ltx := lw.Ctx{
+			"status_code": rs.ErrorStatusCode,
+		}
+		if rs.InternalError != nil {
+			ltx["err"] = fmt.Sprintf("%+v", rs.InternalError)
+		}
+		for k, vv := range rs.Output {
+			ltx[k] = fmt.Sprintf("%+v", vv)
+		}
+		s.Logger.WithContext(ltx).Errorf(rs.ErrorId)
+	} else {
 		// Add headers
 		for i, k := range rs.Headers {
 			for _, v := range k {
@@ -677,20 +688,20 @@ func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *
 			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
-
 		http.Redirect(w, r, u, http.StatusFound)
-	} else {
-		// set content type if the response doesn't already have one associated with it
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", "application/json")
-		}
-		w.WriteHeader(rs.StatusCode)
+		return
+	}
 
-		encoder := json.NewEncoder(w)
-		if err := encoder.Encode(rs.Output); err != nil {
-			s.HandleError(err).ServeHTTP(w, r)
-			return
-		}
+	// set content type if the response doesn't already have one associated with it
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.WriteHeader(rs.StatusCode)
+
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(rs.Output); err != nil {
+		s.HandleError(err).ServeHTTP(w, r)
+		return
 	}
 }
 
@@ -813,14 +824,6 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		errRenderer.HTML(w, errors.HttpStatus(e), "error", e)
 	}
-}
-
-func name(act *vocab.Actor) string {
-	n := act.Name.First().String()
-	if act.PreferredUsername != nil {
-		n = act.PreferredUsername.First().String()
-	}
-	return n
 }
 
 func baseURL(r *http.Request) string {
