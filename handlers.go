@@ -369,7 +369,7 @@ func (s secret) String() string {
 }
 
 func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
-	pw := secret(r.PostFormValue("pw"))
+	pw := r.PostFormValue("pw")
 	handle := r.PostFormValue("handle")
 
 	//a := ap.Self(i.baseIRI)
@@ -395,7 +395,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	var act *account
 	var logger = s.Logger.WithContext(lw.Ctx{
 		"handle": handle,
-		"pass":   pw,
+		"pass":   secret(pw),
 	})
 	if act, err = checkPw(actors, []byte(pw), storage); err != nil {
 		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
@@ -449,10 +449,14 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ltx := lw.Ctx{}
 	var overrideRedir = false
 
 	ar := a.HandleAuthorizeRequest(resp, r)
 	if ar != nil {
+		ltx["grant_type"] = ar.Type
+		ltx["client"] = ar.Client.GetId()
+		ltx["state"] = ar.State
 		if r.Method == http.MethodGet {
 			if ar.Scope == scopeAnonymousUserCreate {
 				// FIXME(marius): this seems like a way to backdoor our selves, we need a better way
@@ -479,17 +483,27 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			acc, err := s.loadAccountFromPost(r)
 			if err != nil {
 				resp.SetError(osin.E_ACCESS_DENIED, err.Error())
+				s.Logger.WithContext(ltx).Errorf("Authorization failed")
 			}
 			if acc != nil {
 				ar.Authorized = true
 				ar.UserData = acc.actor.GetLink()
 			}
+			ltx["handle"] = nameOf(actor)
 		}
 	}
 	a.FinishAuthorizeRequest(resp, r, ar)
 	if overrideRedir {
 		resp.Type = osin.DATA
 	}
+	ltx["authorized"] = ar.Authorized
+	ltx["state"] = ar.State
+	ltx["return_url"] = resp.URL
+	logFn := s.Logger.WithContext(ltx).Warnf
+	if ar.Authorized {
+		logFn = s.Logger.WithContext(ltx).Infof
+	}
+	logFn("Token")
 	s.redirectOrOutput(resp, w, r)
 }
 
@@ -639,6 +653,13 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		a.FinishAccessRequest(resp, r, ar)
+		s.Logger.WithContext(lw.Ctx{
+			"handle":     ar.Username,
+			"authorized": ar.Authorized,
+			"grant_type": ar.Type,
+			"client":     ar.Client.GetId(),
+			"code":       secret(ar.Code),
+		}).Infof("Authorized")
 	}
 	s.redirectOrOutput(resp, w, r)
 }
@@ -911,8 +932,8 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	}
 	tok := r.URL.Query().Get("s")
 
-	pw := secret(r.PostFormValue("pw"))
-	pwConf := secret(r.PostFormValue("pw-confirm"))
+	pw := r.PostFormValue("pw")
+	pwConf := r.PostFormValue("pw-confirm")
 	if pw != pwConf {
 		s.HandleError(errors.Newf("Different passwords submitted")).ServeHTTP(w, r)
 		return
@@ -931,7 +952,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 
 	s.Logger.WithContext(lw.Ctx{
 		"handle": actor.PreferredUsername.String(),
-		"pass":   pw,
+		"pass":   secret(pw),
 	}).Infof("Changed pw")
 
 	storage.RemoveAuthorize(tok)
