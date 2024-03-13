@@ -5,9 +5,10 @@ SHELL := bash
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
-ENV ?= prod
-APP_HOSTNAME ?= authorize.local
+ENV ?= dev
+APP_HOSTNAME ?= auth
 PORT ?= 4001
+STORAGE ?= all
 TAG ?= $(ENV)
 VERSION ?= HEAD
 
@@ -16,15 +17,19 @@ RUN_CMD=podman run
 TAG_CMD=podman tag
 PUSH_CMD=podman push
 
+ifneq ($(STORAGE),all)
+	TAG=$(ENV)-$(STORAGE)
+endif
+
 .PHONY: clean images cert build builder push
 
-authorize.pem:
-	./gen-certs.sh authorize
+$(APP_HOSTNAME).pem:
+	./gen-certs.sh auth
 
-cert: authorize.pem
+cert: $(APP_HOSTNAME).pem
 
 clean:
-	@-$(RM) authorize.{key,crt,pem}
+	@-$(RM) $(APP_HOSTNAME).{key,crt,pem}
 
 builder:
 	./build.sh .. auth/builder
