@@ -496,12 +496,14 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	if overrideRedir {
 		resp.Type = osin.DATA
 	}
-	ltx["authorized"] = ar.Authorized
-	ltx["state"] = ar.State
 	ltx["return_url"] = resp.URL
 	logFn := s.Logger.WithContext(ltx).Warnf
-	if ar.Authorized {
-		logFn = s.Logger.WithContext(ltx).Infof
+	if ar != nil {
+		ltx["authorized"] = ar.Authorized
+		ltx["state"] = ar.State
+		if ar.Authorized {
+			logFn = s.Logger.WithContext(ltx).Infof
+		}
 	}
 	logFn("Token")
 	s.redirectOrOutput(resp, w, r)
