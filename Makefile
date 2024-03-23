@@ -59,7 +59,6 @@ run: ./bin/auth
 
 clean:
 	-$(RM) bin/*
-	$(GO) build clean
 	$(MAKE) -C images $@
 
 images:

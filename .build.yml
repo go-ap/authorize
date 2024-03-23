@@ -40,6 +40,7 @@ tasks:
 
       podman login -u="${BUILDAH_USER}" -p="${BUILDAH_SECRET}" quay.io
 
+      set --
       cd authorize || exit
 
       _sha=$(git rev-parse --short HEAD)
