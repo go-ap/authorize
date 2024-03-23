@@ -600,17 +600,28 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	acc := &AnonymousAcct
 	if ar := a.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
+		var actorCtx lw.Ctx
 		switch ar.Type {
 		case osin.PASSWORD:
-			if u, _ := url.ParseRequestURI(ar.Username); u != nil {
+			if u, _ := url.ParseRequestURI(ar.Username); u != nil && u.Host != "" {
 				// NOTE(marius): here we send the full actor IRI as a username to avoid handler collisions
 				actorSearchIRI = vocab.IRI(ar.Username)
+				actorCtx = lw.Ctx{
+					"actorIRI": ar.Username,
+				}
 			} else {
 				actorSearchIRI = SearchActorsIRI(baseIRI, ByName(ar.Username))
+				actorCtx = lw.Ctx{
+					"handle":   ar.Username,
+					"actorIRI": actorSearchIRI,
+				}
 			}
 		case osin.AUTHORIZATION_CODE:
 			if iri, ok := ar.UserData.(string); ok {
 				actorSearchIRI = vocab.IRI(iri)
+			}
+			actorCtx = lw.Ctx{
+				"actorIRI": actorSearchIRI,
 			}
 		}
 		actor, err := storage.Load(actorSearchIRI)
@@ -634,6 +645,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			} else {
 				acc, err = checkPw(actor, []byte(ar.Password), storage)
 			}
+			actorCtx["handle"] = nameOf(actor)
 			if err != nil || acc == nil {
 				if err == nil {
 					err = errUnauthorized
@@ -655,8 +667,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		a.FinishAccessRequest(resp, r, ar)
-		s.Logger.WithContext(lw.Ctx{
-			"handle":     ar.Username,
+		s.Logger.WithContext(actorCtx, lw.Ctx{
 			"authorized": ar.Authorized,
 			"grant_type": ar.Type,
 			"client":     ar.Client.GetId(),

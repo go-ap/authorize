@@ -83,7 +83,7 @@ func main() {
 			client.WithLogger(l.WithContext(lw.Ctx{"log": "client"})),
 			client.SkipTLSValidation(!env.IsProd()),
 		),
-		Logger: l.WithContext(lw.Ctx{"log": "auth-service"}),
+		Logger: l.WithContext(lw.Ctx{"log": "auth"}),
 	}
 
 	logCtx := lw.Ctx{
