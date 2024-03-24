@@ -471,9 +471,17 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 
 				// check for existing application actor
 				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseURL(r))).AddPath(ar.Client.GetId())
-				if it, err := loader.Load(clientIRI); err == nil {
-					m.client = it
+				if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
+					clientIRI = vocab.IRI(ar.Client.GetId())
 				}
+
+				it, err := loader.Load(clientIRI)
+				if err != nil {
+					resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %+s", err))
+					s.redirectOrOutput(resp, w, r)
+					return
+				}
+				m.client = it
 				m.state = ar.State
 
 				s.renderTemplate(r, w, "login", m)
@@ -607,13 +615,13 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				// NOTE(marius): here we send the full actor IRI as a username to avoid handler collisions
 				actorSearchIRI = vocab.IRI(ar.Username)
 				actorCtx = lw.Ctx{
-					"actorIRI": ar.Username,
+					"actor": ar.Username,
 				}
 			} else {
 				actorSearchIRI = SearchActorsIRI(baseIRI, ByName(ar.Username))
 				actorCtx = lw.Ctx{
-					"handle":   ar.Username,
-					"actorIRI": actorSearchIRI,
+					"handle": ar.Username,
+					"actor":  actorSearchIRI,
 				}
 			}
 		case osin.AUTHORIZATION_CODE:
@@ -621,7 +629,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				actorSearchIRI = vocab.IRI(iri)
 			}
 			actorCtx = lw.Ctx{
-				"actorIRI": actorSearchIRI,
+				"actor": actorSearchIRI,
 			}
 		}
 		actor, err := storage.Load(actorSearchIRI)
@@ -762,7 +770,7 @@ func (l login) Client() vocab.Item {
 	return l.client
 }
 
-func (l login) Handle() string {
+func (l login) Handle() template.HTML {
 	return nameOf(l.account)
 }
 
@@ -790,6 +798,7 @@ var (
 	renderOptions = render.HTMLOptions{
 		Funcs: template.FuncMap{
 			"nameOf": nameOf,
+			"iconOf": iconOf,
 			"IsValid": func(it vocab.Item) bool {
 				return !vocab.IsNil(it)
 			},
@@ -801,7 +810,33 @@ var (
 	unknownActorHandle = "Unknown"
 )
 
-func nameOf(it vocab.Item) string {
+func iconOf(it vocab.Item) template.HTML {
+	if vocab.IsNil(it) {
+		return ""
+	}
+	var icon vocab.Item
+	_ = vocab.OnObject(it, func(ob *vocab.Object) error {
+		if !vocab.IsNil(ob.Icon) {
+			icon = ob.Icon
+		}
+		return nil
+	})
+	var url string
+	if vocab.IsIRI(icon) {
+		url = icon.GetLink().String()
+	} else {
+		_ = vocab.OnObject(icon, func(ob *vocab.Object) error {
+			url = ob.URL.GetLink().String()
+			return nil
+		})
+	}
+	if len(url) > 0 {
+		return template.HTML(fmt.Sprintf(`<img src="%s" />`, url))
+	}
+	return ""
+}
+
+func nameOf(it vocab.Item) template.HTML {
 	if vocab.IsNil(it) {
 		return ""
 	}
@@ -822,7 +857,7 @@ func nameOf(it vocab.Item) string {
 			return nil
 		})
 	}
-	return name
+	return template.HTML(name)
 }
 
 func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {

@@ -11,10 +11,11 @@
 <body>
 <header><h1>Fed::BOX</h1></header>
 {{- $handle := .Handle }}
-{{ $client := .Client | nameOf -}}
+{{ $client := nameOf .Client -}}
+{{- $icon := iconOf .Client -}}
 <main>
     Authorization request from client <strong>{{ $client }}</strong>.<br/>
-    {{ if IsValid .Client.Icon }}<img src="{{ .Client.Icon.URL }}" />{{ end }}
+    {{- $icon }}
     <form method="post">
         <fieldset>
             <input type="hidden" name="state" value="{{.State}}" />
