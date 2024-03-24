@@ -6,7 +6,7 @@ require (
 	git.sr.ht/~mariusor/lw v0.0.0-20240323171419-d538df4af052
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240210113306-c862d947a747
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20240324144241-447493f7e5ee
+	github.com/go-ap/auth v0.0.0-20240324151112-3a50956d1adf
 	github.com/go-ap/errors v0.0.0-20240304112515-6077fa9c17b0
 	github.com/go-ap/processing v0.0.0-20240324144257-a1df6e3b6bdf
 	github.com/go-ap/storage-badger v0.0.0-20240324144559-0d932cdad84c
