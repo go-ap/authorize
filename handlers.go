@@ -417,7 +417,7 @@ func reqUrl(r *http.Request) string {
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
 	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
@@ -591,7 +591,7 @@ var AnonymousAcct = account{
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	a, err := s.server(r)
 	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
@@ -600,7 +600,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 
 	app, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 	baseIRI := app.GetLink()
@@ -634,6 +634,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 		actor, err := storage.Load(actorSearchIRI)
 		if err != nil {
+			s.Logger.Errorf("%+s", err)
 			s.HandleError(errUnauthorized).ServeHTTP(w, r)
 			return
 		}
@@ -785,10 +786,19 @@ type authModel interface {
 
 var (
 	defaultRenderOptions = render.Options{
-		FileSystem:                assets.Templates,
-		Directory:                 assets.TemplatesPath,
-		Extensions:                []string{".html"},
-		Funcs:                     []template.FuncMap{{"HTTPErrors": errors.HttpErrors}},
+		FileSystem: assets.Templates,
+		Directory:  assets.TemplatesPath,
+		Extensions: []string{".html"},
+		Funcs: []template.FuncMap{
+			{
+				"HTTPErrors": errors.HttpErrors,
+				"nameOf":     nameOf,
+				"iconOf":     iconOf,
+				"IsValid": func(it vocab.Item) bool {
+					return !vocab.IsNil(it)
+				},
+			},
+		},
 		Delims:                    render.Delims{Left: "{{", Right: "}}"},
 		Charset:                   "UTF-8",
 		DisableCharset:            false,
@@ -796,13 +806,7 @@ var (
 		DisableHTTPErrorRendering: false,
 	}
 	renderOptions = render.HTMLOptions{
-		Funcs: template.FuncMap{
-			"nameOf": nameOf,
-			"iconOf": iconOf,
-			"IsValid": func(it vocab.Item) bool {
-				return !vocab.IsNil(it)
-			},
-		},
+		Funcs: template.FuncMap{},
 	}
 	errRenderer = render.New(defaultRenderOptions)
 	ren         = render.New(defaultRenderOptions)
@@ -860,10 +864,8 @@ func nameOf(it vocab.Item) template.HTML {
 	return template.HTML(name)
 }
 
-func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {
-	wrt := bytes.Buffer{}
-
-	renderOptions.Funcs["redirectURI"] = func() string {
+func redirectUri(r *http.Request) func() string {
+	return func() string {
 		if r.URL == nil || r.URL.Query() == nil {
 			return ""
 		}
@@ -874,6 +876,12 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 		u = fmt.Sprintf("%s?%s", u, q.Encode())
 		return u
 	}
+}
+
+func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name string, m authModel) {
+	wrt := bytes.Buffer{}
+
+	renderOptions.Funcs["redirectURI"] = redirectUri(r)
 	err := ren.HTML(&wrt, http.StatusOK, name, m, renderOptions)
 	if err == nil {
 		io.Copy(w, &wrt)
@@ -889,9 +897,26 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 }
 
 func (s *Service) HandleError(e error) http.HandlerFunc {
-	s.Logger.Errorf("%+s", e)
+	s.Logger.Errorf("%s", e)
 	return func(w http.ResponseWriter, r *http.Request) {
-		errRenderer.HTML(w, errors.HttpStatus(e), "error", e)
+		if errors.IsNotFound(e) {
+			e = errNotFound
+		}
+		wrt := bytes.Buffer{}
+
+		renderOptions.Funcs["redirectURI"] = redirectUri(r)
+		err := errRenderer.HTML(w, errors.HttpStatus(e), "error", e, renderOptions)
+		if err == nil {
+			io.Copy(w, &wrt)
+			return
+		}
+		err = errors.Annotatef(err, "failed to render template")
+		s.Logger.WithContext(lw.Ctx{"template": "error", "model": fmt.Sprintf("%T", e)}).Errorf("%+s", err)
+		status := errors.HttpStatus(err)
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		errRenderer.HTML(w, status, "error", err, renderOptions)
 	}
 }
 
@@ -908,8 +933,9 @@ func baseURL(r *http.Request) string {
 }
 
 var (
-	errUnauthorized = errors.Unauthorizedf("Invalid username or password")
-	errNotFound     = errors.NotFoundf("actor not found")
+	errUnauthorized    = errors.Unauthorizedf("Invalid username or password")
+	errNotFound        = errors.NotFoundf("actor not found")
+	errStorageNotFound = errors.NotFoundf("matching storage not found")
 )
 
 type OAuth struct {
@@ -989,7 +1015,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 
 	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
@@ -1016,7 +1042,7 @@ func (s *Service) loadActorFromOauth2Session(w http.ResponseWriter, r *http.Requ
 	}
 	_, storage, err := s.findMatchingStorage(baseURL(r))
 	if err != nil {
-		s.HandleError(errNotFound).ServeHTTP(w, r)
+		s.HandleError(err).ServeHTTP(w, r)
 		return nil
 	}
 
