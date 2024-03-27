@@ -396,14 +396,14 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	var act *account
 	var logger = s.Logger.WithContext(lw.Ctx{
 		"handle": handle,
-		"pass":   mask.S(pw),
+		"pass":   mask.S(pw).String(),
 	})
 	if act, err = checkPw(actors, []byte(pw), storage); err != nil {
 		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
 		return nil, err
 	}
 
-	logger.Infof("success")
+	logger.Infof("Login success")
 	return act, nil
 }
 
@@ -610,6 +610,10 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	if ar := a.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
 		var actorCtx lw.Ctx
+		authCtx := lw.Ctx{
+			"grant_type": ar.Type,
+			"client":     ar.Client.GetId(),
+		}
 		switch ar.Type {
 		case osin.PASSWORD:
 			if u, _ := url.ParseRequestURI(ar.Username); u != nil && u.Host != "" {
@@ -617,6 +621,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				actorSearchIRI = vocab.IRI(ar.Username)
 				actorCtx = lw.Ctx{
 					"actor": ar.Username,
+					"pass":  mask.S(ar.Password).String(),
 				}
 			} else {
 				actorSearchIRI = SearchActorsIRI(baseIRI, ByName(ar.Username))
@@ -631,6 +636,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			}
 			actorCtx = lw.Ctx{
 				"actor": actorSearchIRI,
+				"code":  mask.S(ar.Code).String(),
 			}
 		}
 		actor, err := storage.Load(actorSearchIRI)
@@ -677,12 +683,8 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		a.FinishAccessRequest(resp, r, ar)
-		s.Logger.WithContext(actorCtx, lw.Ctx{
-			"authorized": ar.Authorized,
-			"grant_type": ar.Type,
-			"client":     ar.Client.GetId(),
-			"code":       mask.S(ar.Code),
-		}).Infof("Authorized")
+		authCtx["authorized"] = ar.Authorized
+		s.Logger.WithContext(actorCtx, authCtx).Infof("Authorized")
 	}
 	s.redirectOrOutput(resp, w, r)
 }
@@ -1027,7 +1029,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 
 	s.Logger.WithContext(lw.Ctx{
 		"handle": actor.PreferredUsername.String(),
-		"pass":   mask.S(pw),
+		"pass":   mask.S(pw).String(),
 	}).Infof("Changed pw")
 
 	storage.RemoveAuthorize(tok)
