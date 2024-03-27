@@ -7,7 +7,7 @@ require (
 	git.sr.ht/~mariusor/mask v0.0.0-20240327084502-ef2a9438457e
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240210113306-c862d947a747
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20240324151112-3a50956d1adf
+	github.com/go-ap/auth v0.0.0-20240327200816-eff6f47e8ace
 	github.com/go-ap/errors v0.0.0-20240304112515-6077fa9c17b0
 	github.com/go-ap/processing v0.0.0-20240327112907-5742cbc7dcd2
 	github.com/go-ap/storage-badger v0.0.0-20240327113114-d1fd2862ddfe
@@ -15,11 +15,6 @@ require (
 	github.com/go-ap/storage-fs v0.0.0-20240327112929-fcd9700f133e
 	github.com/go-ap/storage-sqlite v0.0.0-20240327113013-723bfea3a8ae
 	github.com/go-chi/chi/v5 v5.0.12
-)
-
-require (
-	git.sr.ht/~mariusor/secret v0.0.0-20240324085018-dc1510f1b862 // indirect
-	github.com/go-chi/chi v4.1.2+incompatible // indirect
 )
 
 require (
@@ -67,7 +62,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	modernc.org/gc/v3 v3.0.0-20240304020402-f0dba7c97c2b // indirect
-	modernc.org/libc v1.48.0 // indirect
+	modernc.org/libc v1.49.0 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
 	modernc.org/sqlite v1.29.5 // indirect
