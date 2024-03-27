@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"git.sr.ht/~mariusor/lw"
+	"git.sr.ht/~mariusor/mask"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/authorize/internal/assets"
@@ -395,7 +396,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	var act *account
 	var logger = s.Logger.WithContext(lw.Ctx{
 		"handle": handle,
-		"pass":   secret(pw),
+		"pass":   mask.S(pw),
 	})
 	if act, err = checkPw(actors, []byte(pw), storage); err != nil {
 		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
@@ -680,7 +681,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			"authorized": ar.Authorized,
 			"grant_type": ar.Type,
 			"client":     ar.Client.GetId(),
-			"code":       secret(ar.Code),
+			"code":       mask.S(ar.Code),
 		}).Infof("Authorized")
 	}
 	s.redirectOrOutput(resp, w, r)
@@ -1026,7 +1027,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 
 	s.Logger.WithContext(lw.Ctx{
 		"handle": actor.PreferredUsername.String(),
-		"pass":   secret(pw),
+		"pass":   mask.S(pw),
 	}).Infof("Changed pw")
 
 	storage.RemoveAuthorize(tok)
