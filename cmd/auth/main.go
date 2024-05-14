@@ -129,40 +129,35 @@ func main() {
 	// Get start/stop functions for the http server
 	srvRun, srvStop := w.HttpServer(setters...)
 	l.Infof("Listening for authorization requests")
-	stopFn := func() {
+	stopFn := func(ctx context.Context) {
 		if err := srvStop(ctx); err != nil {
 			l.Errorf("%+v", err)
 		}
 	}
-	defer stopFn()
 
 	exit := w.RegisterSignalHandlers(w.SignalHandlers{
-		syscall.SIGHUP: func(_ chan int) {
+		syscall.SIGHUP: func(_ chan<- int) {
 			l.Infof("SIGHUP received, reloading configuration")
+			stopFn(ctx)
 		},
-		syscall.SIGINT: func(exit chan int) {
+		syscall.SIGINT: func(exit chan<- int) {
 			l.Infof("SIGINT received, stopping")
+			stopFn(ctx)
 			exit <- 0
 		},
-		syscall.SIGTERM: func(exit chan int) {
+		syscall.SIGTERM: func(exit chan<- int) {
 			l.Infof("SIGITERM received, force stopping")
+			stopFn(ctx)
 			exit <- 0
 		},
-		syscall.SIGQUIT: func(exit chan int) {
+		syscall.SIGQUIT: func(exit chan<- int) {
 			l.Infof("SIGQUIT received, force stopping with core-dump")
+			stopFn(ctx)
 			exit <- 0
 		},
-	}).Exec(func() error {
-		if err := srvRun(); err != nil {
-			l.Errorf("%+v", err)
-			return err
-		}
-		return nil
-	})
-	if exit == 0 {
-		l.Infof("Shutting down")
-	}
+	}).Exec(ctx, srvRun)
 
+	l.Infof("Shutting down")
 	ktx.Exit(exit)
 }
 
