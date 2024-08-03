@@ -135,30 +135,33 @@ func main() {
 		}
 	}
 
-	exit := w.RegisterSignalHandlers(w.SignalHandlers{
-		syscall.SIGHUP: func(_ chan<- int) {
+	err = w.RegisterSignalHandlers(w.SignalHandlers{
+		syscall.SIGHUP: func(_ chan<- error) {
 			l.Infof("SIGHUP received, reloading configuration")
-			stopFn(ctx)
 		},
-		syscall.SIGINT: func(exit chan<- int) {
+		syscall.SIGINT: func(exit chan<- error) {
 			l.Infof("SIGINT received, stopping")
 			stopFn(ctx)
-			exit <- 0
+			exit <- nil
 		},
-		syscall.SIGTERM: func(exit chan<- int) {
+		syscall.SIGTERM: func(exit chan<- error) {
 			l.Infof("SIGITERM received, force stopping")
 			stopFn(ctx)
-			exit <- 0
+			exit <- nil
 		},
-		syscall.SIGQUIT: func(exit chan<- int) {
+		syscall.SIGQUIT: func(exit chan<- error) {
 			l.Infof("SIGQUIT received, force stopping with core-dump")
 			stopFn(ctx)
-			exit <- 0
+			exit <- nil
 		},
 	}).Exec(ctx, srvRun)
-
 	l.Infof("Shutting down")
-	ktx.Exit(exit)
+
+	if err != nil {
+		l.Errorf("Error: %+s", err)
+		ktx.Exit(1)
+	}
+	ktx.Exit(0)
 }
 
 func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize.FullStorage, error) {
