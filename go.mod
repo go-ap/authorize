@@ -7,7 +7,7 @@ require (
 	git.sr.ht/~mariusor/mask v0.0.0-20240327084502-ef2a9438457e
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240519120935-f877e4d97def
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20240801112629-eb3107c4bf2e
+	github.com/go-ap/auth v0.0.0-20240803120634-74fe1bcc062c
 	github.com/go-ap/errors v0.0.0-20240304112515-6077fa9c17b0
 	github.com/go-ap/processing v0.0.0-20240801112744-d675141d6f34
 	github.com/go-ap/storage-badger v0.0.0-20240801114622-4d730a7aea87
