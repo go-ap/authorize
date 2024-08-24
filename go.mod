@@ -7,18 +7,18 @@ require (
 	git.sr.ht/~mariusor/mask v0.0.0-20240327084502-ef2a9438457e
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240519120935-f877e4d97def
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20240824111317-72d519a78fb0
+	github.com/go-ap/auth v0.0.0-20240826180029-d35ec068474a
 	github.com/go-ap/errors v0.0.0-20240304112515-6077fa9c17b0
-	github.com/go-ap/processing v0.0.0-20240824111810-01df4a083428
-	github.com/go-ap/storage-badger v0.0.0-20240824112627-6ed2ca4be810
-	github.com/go-ap/storage-boltdb v0.0.0-20240824112721-5d2956c46dff
-	github.com/go-ap/storage-fs v0.0.0-20240824112014-3c8ff6a6734e
-	github.com/go-ap/storage-sqlite v0.0.0-20240824112517-90f1ae2a3ebe
+	github.com/go-ap/processing v0.0.0-20240826180049-b27f10bcd327
+	github.com/go-ap/storage-badger v0.0.0-20240826180335-3d184c506077
+	github.com/go-ap/storage-boltdb v0.0.0-20240826180323-dd8953a10c80
+	github.com/go-ap/storage-fs v0.0.0-20240826180123-7ad9216a15b8
+	github.com/go-ap/storage-sqlite v0.0.0-20240826180223-f664a2c83894
 	github.com/go-chi/chi/v5 v5.1.0
 )
 
 require (
-	git.sr.ht/~mariusor/cache v0.0.0-20240818143455-23879a9e497a // indirect
+	git.sr.ht/~mariusor/cache v0.0.0-20240826175759-e4d5dbc2aa25 // indirect
 	git.sr.ht/~mariusor/go-xsd-duration v0.0.0-20220703122237-02e73435a078 // indirect
 	git.sr.ht/~mariusor/ssm v0.0.0-20240811085540-34f24cac52b7 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -27,7 +27,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ap/activitypub v0.0.0-20240408091739-ba76b44c2594
 	github.com/go-ap/cache v0.0.0-20240408093337-846e6272444d // indirect
-	github.com/go-ap/client v0.0.0-20240824110742-64c78d4d5184
+	github.com/go-ap/client v0.0.0-20240826175954-dd523526a531
 	github.com/go-ap/filters v0.0.0-20240801112128-c16e26a892c4
 	github.com/go-ap/jsonld v0.0.0-20221030091449-f2a191312c73 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
