@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#set -x
+set -e
 
 _environment=${ENV:-dev}
 _hostname=${APP_HOSTNAME:-auth}
@@ -38,10 +38,11 @@ buildah config --volume /storage "${_image}"
 buildah config --volume /.env "${_image}"
 
 buildah copy --from "${_builder}" "${_image}" /go/src/app/bin/* /bin/
-buildah copy --from "${_builder}" "${_image}" /go/src/app/${_hostname}.key /etc/ssl/certs/
-buildah copy --from "${_builder}" "${_image}" /go/src/app/${_hostname}.crt /etc/ssl/certs/
-buildah copy --from "${_builder}" "${_image}" /go/src/app/${_hostname}.pem /etc/ssl/certs/
+buildah copy --from "${_builder}" "${_image}" /go/src/app/images/${_hostname}.key /etc/ssl/certs/
+buildah copy --from "${_builder}" "${_image}" /go/src/app/images/${_hostname}.crt /etc/ssl/certs/
+buildah copy --from "${_builder}" "${_image}" /go/src/app/images/${_hostname}.pem /etc/ssl/certs/
 
+buildah config --workingdir / "${_image}"
 buildah config --entrypoint '["/bin/auth"]' "${_image}"
 
 # commit
