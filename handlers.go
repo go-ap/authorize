@@ -173,7 +173,7 @@ func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage,
 }
 
 func (s Service) server(req *http.Request) (*auth.Server, error) {
-	app, db, err := s.findMatchingStorage(baseURL(req))
+	app, db, err := s.findMatchingStorage(baseURL(req)...)
 	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
 	}
@@ -248,7 +248,7 @@ func (s Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 		return nil, err
 	}
 
-	app, storage, err := s.findMatchingStorage(baseURL(r))
+	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +375,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 
 	//a := ap.Self(i.baseIRI)
 
-	app, storage, err := s.findMatchingStorage(baseURL(r))
+	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		return nil, err
 	}
@@ -470,20 +470,26 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 				m := login{title: "Login"}
 				m.account = actor
 
+				var it vocab.Item
 				// check for existing application actor
-				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseURL(r))).AddPath(ar.Client.GetId())
-				if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
-					clientIRI = vocab.IRI(ar.Client.GetId())
-				}
+				for _, baseIRI := range baseURL(r) {
+					clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(ar.Client.GetId())
+					if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
+						clientIRI = vocab.IRI(ar.Client.GetId())
+					}
 
-				it, err := loader.Load(clientIRI)
-				if err != nil {
+					it, _ = loader.Load(clientIRI)
+					if !vocab.IsNil(it) {
+						m.client = it
+						m.state = ar.State
+						break
+					}
+				}
+				if vocab.IsNil(it) {
 					resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %+s", err))
 					s.redirectOrOutput(resp, w, r)
 					return
 				}
-				m.client = it
-				m.state = ar.State
 
 				s.renderTemplate(r, w, "login", m)
 				return
@@ -599,7 +605,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	resp := a.NewResponse()
 	defer resp.Close()
 
-	app, storage, err := s.findMatchingStorage(baseURL(r))
+	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
@@ -923,16 +929,19 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 	}
 }
 
-func baseURL(r *http.Request) string {
+func baseURL(r *http.Request) []string {
 	if r == nil {
-		return ""
-	}
-	proto := "http"
-	if r.TLS != nil {
-		proto = "https"
+		return nil
 	}
 	path := "/"
-	return fmt.Sprintf("%s://%s%s", proto, r.Host, path)
+
+	// NOTE(marius): due to the fact that the Authorize server runs behind a proxy which handles the TLS termination,
+	// we can't rely on the request's TLS property to determine the scheme for our URL,
+	// so we generate two base URLs, one for each scheme.
+	return []string{
+		fmt.Sprintf("http://%s%s", r.Host, path),
+		fmt.Sprintf("https://%s%s", r.Host, path),
+	}
 }
 
 var (
@@ -972,7 +981,7 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, _, err := s.findMatchingStorage(baseURL(r))
+	app, _, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(errNotFound).ServeHTTP(w, r)
 		return
@@ -1016,7 +1025,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, storage, err := s.findMatchingStorage(baseURL(r))
+	_, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
@@ -1043,7 +1052,7 @@ func (s *Service) loadActorFromOauth2Session(w http.ResponseWriter, r *http.Requ
 		s.HandleError(notF).ServeHTTP(w, r)
 		return nil
 	}
-	_, storage, err := s.findMatchingStorage(baseURL(r))
+	_, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return nil
