@@ -495,16 +495,15 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			acc, err := s.loadAccountFromPost(r)
-			if err != nil {
-				resp.SetError(osin.E_ACCESS_DENIED, err.Error())
+			handle := r.PostFormValue("handle")
+			if actor == nil || string(nameOf(actor)) != handle {
+				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx).Errorf("Authorization failed")
-			}
-			if acc != nil {
+			} else {
 				ar.Authorized = true
-				ar.UserData = acc.actor.GetLink()
+				ar.UserData = actor.GetLink()
+				ltx["handle"] = nameOf(actor)
 			}
-			ltx["handle"] = nameOf(actor)
 		}
 	}
 	a.FinishAuthorizeRequest(resp, r, ar)
@@ -781,7 +780,7 @@ func (l login) Client() vocab.Item {
 }
 
 func (l login) Handle() template.HTML {
-	return nameOf(l.account)
+	return template.HTML(nameOf(l.account))
 }
 
 type model interface {
@@ -801,8 +800,10 @@ var (
 		Funcs: []template.FuncMap{
 			{
 				"HTTPErrors": errors.HttpErrors,
-				"nameOf":     nameOf,
-				"iconOf":     iconOf,
+				"nameOf": func(it vocab.Item) template.HTML {
+					return template.HTML(nameOf(it))
+				},
+				"iconOf": iconOf,
 				"IsValid": func(it vocab.Item) bool {
 					return !vocab.IsNil(it)
 				},
@@ -849,7 +850,7 @@ func iconOf(it vocab.Item) template.HTML {
 	return ""
 }
 
-func nameOf(it vocab.Item) template.HTML {
+func nameOf(it vocab.Item) string {
 	if vocab.IsNil(it) {
 		return ""
 	}
@@ -870,7 +871,7 @@ func nameOf(it vocab.Item) template.HTML {
 			return nil
 		})
 	}
-	return template.HTML(name)
+	return name
 }
 
 func redirectUri(r *http.Request) func() string {
