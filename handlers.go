@@ -506,6 +506,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
 	a.FinishAuthorizeRequest(resp, r, ar)
 	if overrideRedir {
 		resp.Type = osin.DATA
@@ -519,7 +520,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			logFn = s.Logger.WithContext(ltx).Infof
 		}
 	}
-	logFn("Token")
+	logFn("Authorize")
 	s.redirectOrOutput(resp, w, r)
 }
 
@@ -636,8 +637,8 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case osin.AUTHORIZATION_CODE:
-			if iri, ok := ar.UserData.(string); ok {
-				actorSearchIRI = vocab.IRI(iri)
+			if iri, ok := ar.UserData.(vocab.IRI); ok {
+				actorSearchIRI = iri
 			}
 			actorCtx = lw.Ctx{
 				"actor": actorSearchIRI,
@@ -679,7 +680,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			ar.UserData = acc.actor.GetLink()
 		}
 		if ar.Type == osin.AUTHORIZATION_CODE {
-			vocab.OnActor(actor, func(p *vocab.Actor) error {
+			_ = vocab.OnActor(actor, func(p *vocab.Actor) error {
 				acc = new(account)
 				acc.FromActor(p)
 				ar.Authorized = acc.IsLogged()
@@ -689,8 +690,9 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 		a.FinishAccessRequest(resp, r, ar)
 		authCtx["authorized"] = ar.Authorized
-		s.Logger.WithContext(actorCtx, authCtx).Infof("Authorized")
+		s.Logger.WithContext(actorCtx, authCtx).Infof("Token")
 	}
+
 	s.redirectOrOutput(resp, w, r)
 }
 
