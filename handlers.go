@@ -17,7 +17,6 @@ import (
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/authorize/internal/assets"
-	"github.com/go-ap/client"
 	"github.com/go-ap/errors"
 	"github.com/go-ap/filters"
 	"github.com/go-ap/processing"
@@ -73,13 +72,13 @@ func (a *account) FromActor(p *vocab.Actor) {
 
 type Service struct {
 	Stores []FullStorage
-	Client client.Basic
+	Client auth.Client
 	Logger lw.Logger
 }
 
 // GenerateID creates an IRI that can be used to uniquely identify the "it" item, based on the collection "col" and
 // its creator "by"
-func (s Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.ID, error) {
+func (s *Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.ID, error) {
 	app, _, err := s.findMatchingStorage(iriBaseURL(it.GetLink()))
 	if err != nil {
 		return "", errors.NewNotFound(err, "not found")
@@ -100,8 +99,8 @@ func (s Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.I
 
 // GenerateID generates an unique identifier for the it ActivityPub Object.
 func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item) (vocab.ID, error) {
-	uuid := uuid.New()
-	id := partOf.GetLink().AddPath(uuid)
+	uid := uuid.New()
+	id := partOf.GetLink().AddPath(uid)
 	typ := it.GetType()
 	if vocab.ActivityTypes.Contains(typ) || vocab.IntransitiveActivityTypes.Contains(typ) {
 		err := vocab.OnIntransitiveActivity(it, func(a *vocab.IntransitiveActivity) error {
@@ -114,7 +113,7 @@ func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item) (vocab.ID, error
 			if !vocab.IsNil(by) {
 				// if "it" is not a public activity, save it to its actor Outbox instead of the global activities collection
 				outbox := vocab.Outbox.IRI(by)
-				id = vocab.ID(fmt.Sprintf("%s/%s", outbox, uuid))
+				id = vocab.ID(fmt.Sprintf("%s/%s", outbox, uid))
 			}
 			return nil
 		})
@@ -149,7 +148,7 @@ const (
 	ID osin.AuthorizeRequestType = "id"
 )
 
-func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage, error) {
+func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage, error) {
 	var app vocab.Actor
 	for _, db := range s.Stores {
 		for _, host := range hosts {
@@ -172,7 +171,7 @@ func (s Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage,
 	return app, nil, fmt.Errorf("unable to find storage")
 }
 
-func (s Service) server(req *http.Request) (*auth.Server, error) {
+func (s *Service) server(req *http.Request) (*auth.Server, error) {
 	app, db, err := s.findMatchingStorage(baseURL(req)...)
 	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
@@ -189,7 +188,7 @@ func (s Service) server(req *http.Request) (*auth.Server, error) {
 	)
 }
 
-func (s Service) IsValidRequest(r *http.Request) bool {
+func (s *Service) IsValidRequest(r *http.Request) bool {
 	clientID, err := url.QueryUnescape(r.FormValue(clientIdKey))
 	if err != nil {
 		return false
@@ -223,8 +222,8 @@ func IndieAuthClientActor(author vocab.Item, url *url.URL) *vocab.Actor {
 	return &p
 }
 
-func (s Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
-	r.ParseForm()
+func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
+	_ = r.ParseForm()
 	clientID, err := url.QueryUnescape(r.FormValue(clientIdKey))
 	if err != nil {
 		return nil, err
@@ -837,17 +836,17 @@ func iconOf(it vocab.Item) template.HTML {
 		}
 		return nil
 	})
-	var url string
+	var u string
 	if vocab.IsIRI(icon) {
-		url = icon.GetLink().String()
+		u = icon.GetLink().String()
 	} else {
 		_ = vocab.OnObject(icon, func(ob *vocab.Object) error {
-			url = ob.URL.GetLink().String()
+			u = ob.URL.GetLink().String()
 			return nil
 		})
 	}
-	if len(url) > 0 {
-		return template.HTML(fmt.Sprintf(`<img src="%s" />`, url))
+	if len(u) > 0 {
+		return template.HTML(fmt.Sprintf(`<img src="%s" />`, u))
 	}
 	return ""
 }
