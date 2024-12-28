@@ -97,7 +97,7 @@ func (s *Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.
 	return generateID(it, partOf, by)
 }
 
-// GenerateID generates an unique identifier for the it ActivityPub Object.
+// GenerateID generates a unique identifier for the 'it' [vocab.Item].
 func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item) (vocab.ID, error) {
 	uid := uuid.New()
 	id := partOf.GetLink().AddPath(uid)
@@ -495,13 +495,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			handle := r.PostFormValue("handle")
-			if actor == nil || string(nameOf(actor)) != handle {
+			if actor == nil || vocab.NameOf(actor) != handle {
 				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx).Errorf("Authorization failed")
 			} else {
 				ar.Authorized = true
 				ar.UserData = actor.GetLink()
-				ltx["handle"] = nameOf(actor)
+				ltx["handle"] = vocab.NameOf(actor)
 			}
 		}
 	}
@@ -666,7 +666,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			} else {
 				acc, err = checkPw(actor, []byte(ar.Password), storage)
 			}
-			actorCtx["handle"] = nameOf(actor)
+			actorCtx["handle"] = vocab.NameOf(actor)
 			if err != nil || acc == nil {
 				if err == nil {
 					err = errUnauthorized
@@ -781,7 +781,7 @@ func (l login) Client() vocab.Item {
 }
 
 func (l login) Handle() template.HTML {
-	return template.HTML(nameOf(l.account))
+	return template.HTML(vocab.NameOf(l.account))
 }
 
 type model interface {
@@ -801,8 +801,8 @@ var (
 		Funcs: []template.FuncMap{
 			{
 				"HTTPErrors": errors.HttpErrors,
-				"nameOf": func(it vocab.Item) template.HTML {
-					return template.HTML(nameOf(it))
+				"vocab.NameOf": func(it vocab.Item) template.HTML {
+					return template.HTML(vocab.NameOf(it))
 				},
 				"iconOf": iconOf,
 				"IsValid": func(it vocab.Item) bool {
@@ -849,30 +849,6 @@ func iconOf(it vocab.Item) template.HTML {
 		return template.HTML(fmt.Sprintf(`<img src="%s" />`, u))
 	}
 	return ""
-}
-
-func nameOf(it vocab.Item) string {
-	if vocab.IsNil(it) {
-		return ""
-	}
-	name := unknownActorHandle
-	if vocab.ActorTypes.Contains(it.GetType()) {
-		_ = vocab.OnActor(it, func(act *vocab.Actor) error {
-			if len(act.PreferredUsername) > 0 {
-				name = act.PreferredUsername.First().String()
-			}
-			return nil
-		})
-	}
-	if name == unknownActorHandle {
-		_ = vocab.OnObject(it, func(ob *vocab.Object) error {
-			if len(ob.Name) > 0 {
-				name = ob.Name.First().String()
-			}
-			return nil
-		})
-	}
-	return name
 }
 
 func redirectUri(r *http.Request) func() string {
