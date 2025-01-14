@@ -3,16 +3,16 @@ module github.com/go-ap/authorize
 go 1.23
 
 require (
-	git.sr.ht/~mariusor/lw v0.0.0-20241117105956-4b4009e28502
-	git.sr.ht/~mariusor/mask v0.0.0-20240327084502-ef2a9438457e
+	git.sr.ht/~mariusor/lw v0.0.0-20250114195945-ba9c7bcca3c1
+	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
 	git.sr.ht/~mariusor/wrapper v0.0.0-20240519120935-f877e4d97def
 	github.com/alecthomas/kong v0.8.1
-	github.com/go-ap/auth v0.0.0-20250112171545-0de326c5781f
+	github.com/go-ap/auth v0.0.0-20250114195703-e9e09b3689ac
 	github.com/go-ap/errors v0.0.0-20241212155021-5a598b6bf467
 	github.com/go-ap/processing v0.0.0-20250112171625-80ada28015f7
 	github.com/go-ap/storage-badger v0.0.0-20250112172401-9d6913ac02d6
 	github.com/go-ap/storage-boltdb v0.0.0-20250112172252-895081d1c2a1
-	github.com/go-ap/storage-fs v0.0.0-20250112171730-e07b53efee99
+	github.com/go-ap/storage-fs v0.0.0-20250113185622-05b67ea8c0b2
 	github.com/go-ap/storage-sqlite v0.0.0-20250112172146-3bb425c316bb
 	github.com/go-chi/chi/v5 v5.2.0
 )
