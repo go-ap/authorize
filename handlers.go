@@ -495,13 +495,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			handle := r.PostFormValue("handle")
-			if actor == nil || vocab.NameOf(actor) != handle {
+			if actor == nil || vocab.PreferredNameOf(actor) != handle {
 				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx).Errorf("Authorization failed")
 			} else {
 				ar.Authorized = true
 				ar.UserData = actor.GetLink()
-				ltx["handle"] = vocab.NameOf(actor)
+				ltx["handle"] = vocab.PreferredNameOf(actor)
 			}
 		}
 	}
@@ -666,7 +666,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			} else {
 				acc, err = checkPw(actor, []byte(ar.Password), storage)
 			}
-			actorCtx["handle"] = vocab.NameOf(actor)
+			actorCtx["handle"] = vocab.PreferredNameOf(actor)
 			if err != nil || acc == nil {
 				if err == nil {
 					err = errUnauthorized
@@ -780,10 +780,6 @@ func (l login) Client() vocab.Item {
 	return l.client
 }
 
-func (l login) Handle() template.HTML {
-	return template.HTML(vocab.NameOf(l.account))
-}
-
 type model interface {
 	Title() string
 }
@@ -801,8 +797,8 @@ var (
 		Funcs: []template.FuncMap{
 			{
 				"HTTPErrors": errors.HttpErrors,
-				"vocab.NameOf": func(it vocab.Item) template.HTML {
-					return template.HTML(vocab.NameOf(it))
+				"nameOf": func(it vocab.Item) template.HTML {
+					return template.HTML(vocab.PreferredNameOf(it))
 				},
 				"iconOf": iconOf,
 				"IsValid": func(it vocab.Item) bool {
@@ -871,7 +867,7 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 	renderOptions.Funcs["redirectURI"] = redirectUri(r)
 	err := ren.HTML(&wrt, http.StatusOK, name, m, renderOptions)
 	if err == nil {
-		io.Copy(w, &wrt)
+		_, _ = io.Copy(w, &wrt)
 		return
 	}
 	err = errors.Annotatef(err, "failed to render template")

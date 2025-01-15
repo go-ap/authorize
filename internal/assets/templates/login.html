@@ -10,8 +10,8 @@
 </head>
 <body>
 <header><h1>Fed::BOX</h1></header>
-{{- $handle := .Handle }}
-{{ $client := nameOf .Client -}}
+{{- $handle := nameOf .Account -}}
+{{- $client := nameOf .Client -}}
 {{- $icon := iconOf .Client -}}
 <main>
     Authorization request from client <strong>{{ $client }}</strong>.<br/>
