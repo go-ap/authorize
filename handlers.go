@@ -495,7 +495,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			handle := r.PostFormValue("handle")
-			if actor == nil || vocab.PreferredNameOf(actor) != handle {
+			if vocab.IsNil(actor) || vocab.PreferredNameOf(actor) != handle {
 				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx).Errorf("Authorization failed")
 			} else {
@@ -798,6 +798,9 @@ var (
 			{
 				"HTTPErrors": errors.HttpErrors,
 				"nameOf": func(it vocab.Item) template.HTML {
+					if vocab.IsNil(it) {
+						return ""
+					}
 					return template.HTML(vocab.PreferredNameOf(it))
 				},
 				"iconOf": iconOf,
@@ -876,7 +879,7 @@ func (s *Service) renderTemplate(r *http.Request, w http.ResponseWriter, name st
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
-	errRenderer.HTML(w, status, "error", err)
+	_ = errRenderer.HTML(w, status, "error", err)
 }
 
 func (s *Service) HandleError(e error) http.HandlerFunc {
@@ -890,7 +893,7 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 		renderOptions.Funcs["redirectURI"] = redirectUri(r)
 		err := errRenderer.HTML(w, errors.HttpStatus(e), "error", e, renderOptions)
 		if err == nil {
-			io.Copy(w, &wrt)
+			_, _ = io.Copy(w, &wrt)
 			return
 		}
 		err = errors.Annotatef(err, "failed to render template")
@@ -899,7 +902,7 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 		if status == 0 {
 			status = http.StatusInternalServerError
 		}
-		errRenderer.HTML(w, status, "error", err, renderOptions)
+		_ = errRenderer.HTML(w, status, "error", err, renderOptions)
 	}
 }
 
@@ -907,14 +910,14 @@ func baseURL(r *http.Request) []string {
 	if r == nil {
 		return nil
 	}
-	path := "/"
+	up := "/"
 
 	// NOTE(marius): due to the fact that the Authorize server runs behind a proxy which handles the TLS termination,
 	// we can't rely on the request's TLS property to determine the scheme for our URL,
 	// so we generate two base URLs, one for each scheme.
 	return []string{
-		fmt.Sprintf("http://%s%s", r.Host, path),
-		fmt.Sprintf("https://%s%s", r.Host, path),
+		fmt.Sprintf("http://%s%s", r.Host, up),
+		fmt.Sprintf("https://%s%s", r.Host, up),
 	}
 }
 
