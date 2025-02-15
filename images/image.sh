@@ -22,7 +22,6 @@ echo "Building image ${_image_name} for host=${_hostname} env:${_environment} st
 buildah run "${_builder}" make ENV="${_environment}" STORAGE="${_storage}" VERSION="${_version}" all
 buildah run "${_builder}" make -C images "${_hostname}.pem"
 
-#_image=$(buildah from gcr.io/distroless/static:latest)
 _image=$(buildah from cgr.dev/chainguard/static:latest)
 
 buildah config --env ENV="${_environment}" "${_image}"
