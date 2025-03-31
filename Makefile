@@ -13,6 +13,7 @@ LDFLAGS ?= -X main.version=$(VERSION)
 BUILDFLAGS ?= -a -ldflags '$(LDFLAGS)'
 TEST_FLAGS ?= -count=1
 
+UPX = upx
 GO ?= go
 APPSOURCES := $(wildcard ./*.go cmd/auth/*.go)
 
@@ -53,6 +54,9 @@ go.sum: go.mod
 auth: bin/auth
 bin/auth: go.mod go.sum $(APPSOURCES)
 	$(BUILD) -tags "$(TAGS)" -o $@ ./cmd/auth
+ifneq ($(ENV),dev)
+	$(UPX) -q --mono --no-progress --best $@ || true
+endif
 
 run: ./bin/auth
 	@./bin/auth
