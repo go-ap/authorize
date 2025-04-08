@@ -136,7 +136,6 @@ func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item) (vocab.ID, error
 		o.ID = id
 		return nil
 	})
-	return id, nil
 }
 
 const (
@@ -510,7 +509,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	if overrideRedir {
 		resp.Type = osin.DATA
 	}
-	ltx["return_url"] = resp.URL
+	ltx["redirect_uri"] = resp.URL
 	logFn := s.Logger.WithContext(ltx).Warnf
 	if ar != nil {
 		ltx["authorized"] = ar.Authorized
