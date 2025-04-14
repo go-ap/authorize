@@ -74,6 +74,16 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+	if len(stores) == 0 {
+		l.Errorf("Unable to find any valid storage path")
+		os.Exit(1)
+	}
+
+	defer func() {
+		for _, st := range stores {
+			st.Close()
+		}
+	}()
 
 	r := chi.NewMux()
 
@@ -118,7 +128,7 @@ func main() {
 		setters = append(setters, w.OnSystemd())
 	} else if _, err := os.Stat(dir); err == nil {
 		setters = append(setters, w.OnSocket(Auth.ListenOn))
-		defer func() { os.RemoveAll(Auth.ListenOn) }()
+		defer func() { _ = os.RemoveAll(Auth.ListenOn) }()
 	} else {
 		setters = append(setters, w.OnTCP(Auth.ListenOn))
 	}
@@ -185,6 +195,10 @@ func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize
 			errs = append(errs, fmt.Errorf("invalid storage backend %T [%s]%s", db, typ, path))
 			continue
 		}
+		if err = fs.Open(); err != nil {
+			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s", db, typ, path))
+			continue
+		}
 		stores = append(stores, fs)
 	}
 	return stores, errors.Join(errs...)
@@ -218,6 +232,10 @@ func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]autho
 		fs, ok := db.(authorize.FullStorage)
 		if !ok {
 			errs = append(errs, fmt.Errorf("invalid storage backend %T [%s]%s", db, st.Type, st.Path))
+			continue
+		}
+		if err = fs.Open(); err != nil {
+			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s", db, st.Type, st.Path))
 			continue
 		}
 		stores = append(stores, fs)

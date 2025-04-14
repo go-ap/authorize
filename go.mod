@@ -5,15 +5,15 @@ go 1.24.0
 require (
 	git.sr.ht/~mariusor/lw v0.0.0-20250325163623-1639f3fb0e0d
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
-	git.sr.ht/~mariusor/wrapper v0.0.0-20240519120935-f877e4d97def
+	git.sr.ht/~mariusor/wrapper v0.0.0-20250414202025-7af98c35299c
 	github.com/alecthomas/kong v1.8.0
 	github.com/go-ap/auth v0.0.0-20250409144154-5b90f4f02389
 	github.com/go-ap/errors v0.0.0-20250409143711-5686c11ae650
 	github.com/go-ap/processing v0.0.0-20250409144309-b7bd9397ac3a
-	github.com/go-ap/storage-badger v0.0.0-20250409144938-31a5d79a045b
-	github.com/go-ap/storage-boltdb v0.0.0-20250409144853-54754cf62847
-	github.com/go-ap/storage-fs v0.0.0-20250409144758-e3bdce89fccf
-	github.com/go-ap/storage-sqlite v0.0.0-20250409144911-44fe3059f81c
+	github.com/go-ap/storage-badger v0.0.0-20250414181734-3201de95c26d
+	github.com/go-ap/storage-boltdb v0.0.0-20250414181714-e3ec894bf3d4
+	github.com/go-ap/storage-fs v0.0.0-20250414135724-28ce9aff7dd4
+	github.com/go-ap/storage-sqlite v0.0.0-20250414135807-41bb13366a08
 	github.com/go-chi/chi/v5 v5.2.1
 )
 

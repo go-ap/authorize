@@ -38,6 +38,7 @@ type account struct {
 }
 
 type FullStorage interface {
+	Open() error
 	ClientSaver
 	ClientLister
 	osin.Storage
