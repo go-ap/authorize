@@ -168,10 +168,19 @@ func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage
 			}
 		}
 	}
-	return app, nil, fmt.Errorf("unable to find storage")
+	return app, nil, errStorageNotFound
 }
 
-func (s *Service) server(req *http.Request) (*auth.Server, error) {
+func (s *Service) auth(app vocab.Actor, db FullStorage) (*auth.Server, error) {
+	return auth.New(
+		auth.WithURL(app.GetLink().String()),
+		auth.WithStorage(db),
+		auth.WithClient(s.Client),
+		auth.WithLogger(s.Logger.WithContext(lw.Ctx{"log": "osin"})),
+	)
+}
+
+func (s *Service) authFromRequest(req *http.Request) (*auth.Server, error) {
 	app, db, err := s.findMatchingStorage(baseURL(req)...)
 	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
@@ -180,12 +189,7 @@ func (s *Service) server(req *http.Request) (*auth.Server, error) {
 		return nil, errors.NotFoundf("resource not found %s", req.Host)
 	}
 
-	return auth.New(
-		auth.WithURL(app.GetLink().String()),
-		auth.WithStorage(db),
-		auth.WithClient(s.Client),
-		auth.WithLogger(s.Logger.WithContext(lw.Ctx{"log": "osin"})),
-	)
+	return s.auth(app, db)
 }
 
 func (s *Service) IsValidRequest(r *http.Request) bool {
@@ -273,9 +277,6 @@ func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 	}
 	if clientActor == nil {
 		newClient := IndieAuthClientActor(actor, clientURL)
-		if err != nil {
-			return nil, err
-		}
 		if newId, err := s.generateID(newClient, vocab.Outbox.IRI(actor), nil); err == nil {
 			newClient.ID = newId
 		}
@@ -337,7 +338,7 @@ func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
 		return nil, errNotFound
 	}
 	if actors.IsCollection() {
-		vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
+		_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
 			actors = col.Collection()
 			return nil
 		})
@@ -372,8 +373,6 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	pw := r.PostFormValue("pw")
 	handle := r.PostFormValue("handle")
 
-	//a := ap.Self(i.baseIRI)
-
 	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		return nil, err
@@ -386,7 +385,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 		return nil, errUnauthorized
 	}
 	if actors.IsCollection() {
-		vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
+		_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
 			actors = col.Collection()
 			return nil
 		})
@@ -415,14 +414,13 @@ func reqUrl(r *http.Request) string {
 }
 
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
-	a, err := s.server(r)
+	a, err := s.authFromRequest(r)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
 	resp := a.NewResponse()
-	defer resp.Close()
 
 	loader, ok := a.Storage.(processing.ReadStore)
 	if !ok {
@@ -595,15 +593,6 @@ var AnonymousAcct = account{
 }
 
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
-	a, err := s.server(r)
-	if err != nil {
-		s.HandleError(err).ServeHTTP(w, r)
-		return
-	}
-
-	resp := a.NewResponse()
-	defer resp.Close()
-
 	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
@@ -612,6 +601,13 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	baseIRI := app.GetLink()
 
 	acc := &AnonymousAcct
+	a, err := s.auth(app, storage)
+	if err != nil {
+		s.HandleError(err).ServeHTTP(w, r)
+		return
+	}
+
+	resp := a.NewResponse()
 	if ar := a.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
 		var actorCtx lw.Ctx
@@ -635,7 +631,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 					"actor":  actorSearchIRI,
 				}
 			}
-		case osin.AUTHORIZATION_CODE:
+		case osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
 			if iri, ok := ar.UserData.(vocab.IRI); ok {
 				actorSearchIRI = iri
 			}
@@ -678,7 +674,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			ar.Authorized = acc.IsLogged()
 			ar.UserData = acc.actor.GetLink()
 		}
-		if ar.Type == osin.AUTHORIZATION_CODE {
+		if ar.Type == osin.AUTHORIZATION_CODE || ar.Type == osin.REFRESH_TOKEN {
 			_ = vocab.OnActor(actor, func(p *vocab.Actor) error {
 				acc = new(account)
 				acc.FromActor(p)
@@ -891,14 +887,18 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 		wrt := bytes.Buffer{}
 
 		renderOptions.Funcs["redirectURI"] = redirectUri(r)
-		err := errRenderer.HTML(w, errors.HttpStatus(e), "error", e, renderOptions)
+		status := errors.HttpStatus(e)
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		err := errRenderer.HTML(w, status, "error", e, renderOptions)
 		if err == nil {
 			_, _ = io.Copy(w, &wrt)
 			return
 		}
 		err = errors.Annotatef(err, "failed to render template")
 		s.Logger.WithContext(lw.Ctx{"template": "error", "model": fmt.Sprintf("%T", e)}).Errorf("%+s", err)
-		status := errors.HttpStatus(err)
+		status = errors.HttpStatus(err)
 		if status == 0 {
 			status = http.StatusInternalServerError
 		}

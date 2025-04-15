@@ -79,17 +79,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	defer func() {
-		for _, st := range stores {
-			st.Close()
-		}
-	}()
-
 	r := chi.NewMux()
 
+	ua := fmt.Sprintf("GoActivityPub//authorize (+github.com/go-ap/authorize@%s)", version)
 	h := authorize.Service{
 		Stores: stores,
 		Client: client.New(
+			client.WithUserAgent(ua),
 			client.WithLogger(l.WithContext(lw.Ctx{"log": "client"})),
 			client.SkipTLSValidation(!env.IsProd()),
 		),
@@ -140,6 +136,9 @@ func main() {
 	srvRun, srvStop := w.HttpServer(setters...)
 	l.Infof("Listening for authorization requests")
 	stopFn := func(ctx context.Context) {
+		for _, st := range stores {
+			st.Close()
+		}
 		if err := srvStop(ctx); err != nil {
 			l.Errorf("%+v", err)
 		}
@@ -155,7 +154,7 @@ func main() {
 			exit <- nil
 		},
 		syscall.SIGTERM: func(exit chan<- error) {
-			l.Infof("SIGITERM received, force stopping")
+			l.Infof("SIGTERM received, force stopping")
 			stopFn(ctx)
 			exit <- nil
 		},
