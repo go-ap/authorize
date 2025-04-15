@@ -592,6 +592,19 @@ var AnonymousAcct = account{
 	actor:    &auth.AnonymousActor,
 }
 
+func iriFromUserData(raw any) (vocab.IRI, error) {
+	if iri, ok := raw.(vocab.IRI); ok {
+		return iri, nil
+	}
+	if iri, ok := raw.(string); ok {
+		return vocab.IRI(iri), nil
+	}
+	if iri, ok := raw.([]byte); ok {
+		return vocab.IRI(iri), nil
+	}
+	return "", errors.Errorf("invalid user data of type %T: %s, unable to convert to IRI", raw, raw)
+}
+
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	app, storage, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
@@ -632,8 +645,10 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
-			if iri, ok := ar.UserData.(vocab.IRI); ok {
-				actorSearchIRI = iri
+			if actorSearchIRI, err = iriFromUserData(ar.UserData); err != nil {
+				s.Logger.Errorf("%+s", err)
+				s.HandleError(errNotFound).ServeHTTP(w, r)
+				return
 			}
 			actorCtx = lw.Ctx{
 				"actor": actorSearchIRI,
@@ -643,7 +658,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		actor, err := storage.Load(actorSearchIRI)
 		if err != nil {
 			s.Logger.Errorf("%+s", err)
-			s.HandleError(errUnauthorized).ServeHTTP(w, r)
+			s.HandleError(errNotFound).ServeHTTP(w, r)
 			return
 		}
 		if ar.Type == osin.PASSWORD {
