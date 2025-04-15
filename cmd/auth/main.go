@@ -130,7 +130,6 @@ func main() {
 	}
 
 	ctx, cancelFn := context.WithTimeout(context.TODO(), defaultTimeout)
-	defer cancelFn()
 
 	// Get start/stop functions for the http server
 	srvRun, srvStop := w.HttpServer(setters...)
@@ -141,8 +140,11 @@ func main() {
 		}
 		if err := srvStop(ctx); err != nil {
 			l.Errorf("%+v", err)
+		} else {
+			l.Infof("Stopped")
 		}
 	}
+	defer stopFn(ctx)
 
 	err = w.RegisterSignalHandlers(w.SignalHandlers{
 		syscall.SIGHUP: func(_ chan<- error) {
@@ -150,17 +152,17 @@ func main() {
 		},
 		syscall.SIGINT: func(exit chan<- error) {
 			l.Infof("SIGINT received, stopping")
-			stopFn(ctx)
+			cancelFn()
 			exit <- nil
 		},
 		syscall.SIGTERM: func(exit chan<- error) {
 			l.Infof("SIGTERM received, force stopping")
-			stopFn(ctx)
+			cancelFn()
 			exit <- nil
 		},
 		syscall.SIGQUIT: func(exit chan<- error) {
 			l.Infof("SIGQUIT received, force stopping with core-dump")
-			stopFn(ctx)
+			cancelFn()
 			exit <- nil
 		},
 	}).Exec(ctx, srvRun)
