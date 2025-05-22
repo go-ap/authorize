@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -82,10 +83,13 @@ func main() {
 	r := chi.NewMux()
 
 	ua := fmt.Sprintf("GoActivityPub//authorize (+github.com/go-ap/authorize@%s)", version)
+	baseClient := &http.Client{
+		Transport: client.UserAgentTransport(ua, http.DefaultTransport),
+	}
 	h := authorize.Service{
 		Stores: stores,
 		Client: client.New(
-			client.WithUserAgent(ua),
+			client.WithHTTPClient(baseClient),
 			client.WithLogger(l.WithContext(lw.Ctx{"log": "client"})),
 			client.SkipTLSValidation(!env.IsProd()),
 		),
