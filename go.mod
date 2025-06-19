@@ -10,10 +10,10 @@ require (
 	github.com/go-ap/auth v0.0.0-20250527112020-6b6fbf0ccd0a
 	github.com/go-ap/errors v0.0.0-20250527110557-c8db454e53fd
 	github.com/go-ap/processing v0.0.0-20250618080358-876012eb81d8
-	github.com/go-ap/storage-badger v0.0.0-20250527112556-3b2007cdecbd
-	github.com/go-ap/storage-boltdb v0.0.0-20250527112502-a71bf4942f31
-	github.com/go-ap/storage-fs v0.0.0-20250608153256-d9546abbc2a4
-	github.com/go-ap/storage-sqlite v0.0.0-20250527112531-76fed334328a
+	github.com/go-ap/storage-badger v0.0.0-20250619131731-3bd41a1f3e62
+	github.com/go-ap/storage-boltdb v0.0.0-20250619125512-d998019b7da3
+	github.com/go-ap/storage-fs v0.0.0-20250619141714-38985a9ea4a6
+	github.com/go-ap/storage-sqlite v0.0.0-20250619130004-490b88b4cefe
 	github.com/go-chi/chi/v5 v5.2.1
 )
 
