@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -270,10 +269,22 @@ func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 		}
 	}
 	// check for existing application actor
-	iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(vocab.IRI(clientID)))
-	clientActor, err := storage.Load(iri, filters.SameURL(vocab.IRI(clientID)), filters.HasType(vocab.ApplicationType))
-	if err != nil {
-		return nil, err
+	clientActor, err := storage.Load(vocab.IRI(clientID))
+	if err != nil && errors.IsNotFound(err) {
+		iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(vocab.IRI(clientID)))
+		actors, err := storage.Load(iri, filters.SameURL(vocab.IRI(clientID)), filters.HasType(vocab.ApplicationType))
+		if err != nil {
+			return nil, err
+		}
+		err = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
+			if len(col.Collection()) == 1 {
+				clientActor = col.Collection().First()
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	if clientActor == nil {
 		newClient := IndieAuthClientActor(actor, clientURL)
@@ -285,7 +296,7 @@ func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 			return nil, err
 		}
 	}
-	id := path.Base(clientActor.GetID().String())
+	id := clientActor.GetID().String()
 	// must have a valid client
 	if _, err = storage.GetClient(id); err != nil {
 		if errors.IsNotFound(err) {
