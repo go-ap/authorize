@@ -177,6 +177,14 @@ func main() {
 		syscall.SIGHUP: func(_ chan<- error) {
 			l.Infof("SIGHUP received, reloading configuration")
 		},
+		syscall.SIGUSR1: func(_ chan<- error) {
+			authorize.InMaintenanceMode = !authorize.InMaintenanceMode
+			l.WithContext(lw.Ctx{"maintenance": authorize.InMaintenanceMode}).Debugf("SIGUSR1 received")
+		},
+		syscall.SIGUSR2: func(_ chan<- error) {
+			authorize.InDebugMode = !authorize.InDebugMode
+			l.WithContext(lw.Ctx{"maintenance": authorize.InDebugMode}).Debugf("SIGUSR2 received")
+		},
 		syscall.SIGINT: func(exit chan<- error) {
 			l.Infof("SIGINT received, stopping")
 			cancelFn()

@@ -1113,3 +1113,16 @@ func assertToBytes(in any) ([]byte, error) {
 	}
 	return nil, errors.Errorf(`Could not assert "%v" to string`, in)
 }
+
+var InMaintenanceMode bool = false
+var InDebugMode bool = false
+
+func (s *Service) OutOfOrderMw(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if InMaintenanceMode {
+			s.HandleError(errors.ServiceUnavailablef("temporarily out of order")).ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
