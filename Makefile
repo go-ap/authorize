@@ -10,8 +10,8 @@ ENV ?= dev
 STORAGE ?=
 
 LDFLAGS ?= -X main.version=$(VERSION)
-BUILDFLAGS ?= -a -ldflags '$(LDFLAGS)'
-TEST_FLAGS ?= -count=1
+BUILDFLAGS ?= -a -ldflags '$(LDFLAGS)' -tags "$(TAGS)"
+TEST_FLAGS ?= -count=1 -tags "$(TAGS)"
 
 UPX = upx
 GO ?= go
@@ -53,7 +53,7 @@ go.sum: go.mod
 
 auth: bin/auth
 bin/auth: go.mod go.sum $(APPSOURCES)
-	$(BUILD) -tags "$(TAGS)" -o $@ ./cmd/auth
+	$(BUILD) -o $@ ./cmd/auth
 ifneq ($(ENV),dev)
 	$(UPX) -q --mono --no-progress --best $@ || true
 endif
@@ -70,7 +70,7 @@ images:
 
 test: TEST_TARGET := .
 test: go.sum
-	$(TEST) $(TEST_FLAGS) -tags "$(TAGS)" $(TEST_TARGET)
+	$(TEST) $(TEST_FLAGS) $(TEST_TARGET)
 
 coverage: TEST_TARGET := .
 coverage: TEST_FLAGS += -covermode=count -coverprofile $(PROJECT_NAME).coverprofile
