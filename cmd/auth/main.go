@@ -19,6 +19,7 @@ import (
 	"github.com/go-ap/authorize/internal/config"
 	"github.com/go-ap/client"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
 )
 
@@ -41,6 +42,16 @@ type Config struct {
 var defaultTimeout = time.Second * 10
 
 var version = "HEAD"
+
+type corsLogger func(string, ...any)
+
+func (c corsLogger) Printf(f string, v ...interface{}) {
+	c(f, v...)
+}
+
+func checkOriginForBlockedActors(r *http.Request, origin string) bool {
+	return true
+}
 
 func main() {
 	ktx := kong.Parse(
@@ -102,7 +113,19 @@ func main() {
 	}
 	l = l.WithContext(logCtx)
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"https://*"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+		AllowOriginFunc:  checkOriginForBlockedActors,
+		MaxAge:           int(time.Hour.Seconds()),
+		Debug:            !authorize.InDebugMode,
+	})
+	c.Log = corsLogger(l.WithContext(lw.Ctx{"log": "cors"}).Tracef)
+
 	routes := func(r chi.Router) {
+		r.Use(c.Handler)
 		// Authorization code endpoint
 		r.Get("/authorize", h.Authorize)
 		r.Post("/authorize", h.Authorize)

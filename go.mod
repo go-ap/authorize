@@ -15,6 +15,7 @@ require (
 	github.com/go-ap/storage-fs v0.0.0-20251003140022-85b79506a5be
 	github.com/go-ap/storage-sqlite v0.0.0-20251003135912-f6befb47394c
 	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/cors v1.2.2
 )
 
 require (
