@@ -62,11 +62,11 @@ type ClientLister interface {
 }
 
 func (a account) IsLogged() bool {
-	return a.actor != nil && a.actor.PreferredUsername.First().Value.String() == a.username
+	return a.actor != nil && a.actor.PreferredUsername.First().String() == a.username
 }
 
 func (a *account) FromActor(p *vocab.Actor) {
-	a.username = p.PreferredUsername.First().String()
+	a.username = vocab.PreferredNameOf(p)
 	a.actor = p
 }
 
@@ -213,11 +213,11 @@ func IndieAuthClientActor(author vocab.Item, url *url.URL) *vocab.Actor {
 		Generator:    author.GetLink(),
 		Published:    now,
 		Summary: vocab.NaturalLanguageValues{
-			{vocab.NilLangRef, vocab.Content("IndieAuth generated actor")},
+			vocab.DefaultLang: vocab.Content("IndieAuth generated actor"),
 		},
 		Updated: now,
 		PreferredUsername: vocab.NaturalLanguageValues{
-			{vocab.NilLangRef, vocab.Content(preferredUsername)},
+			vocab.DefaultLang: vocab.Content(preferredUsername),
 		},
 		URL: vocab.IRI(url.String()),
 	}

@@ -7,13 +7,13 @@ require (
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
 	git.sr.ht/~mariusor/wrapper v0.0.0-20250504120759-5fa47ac25e08
 	github.com/alecthomas/kong v1.12.1
-	github.com/go-ap/auth v0.0.0-20251021120136-6ea8f5eae1de
+	github.com/go-ap/auth v0.0.0-20251022105043-f79b668be6a0
 	github.com/go-ap/errors v0.0.0-20250905102357-4480b47a00c4
-	github.com/go-ap/processing v0.0.0-20251021120159-9e357b7b59c0
-	github.com/go-ap/storage-badger v0.0.0-20251021120344-27cbf95711b8
-	github.com/go-ap/storage-boltdb v0.0.0-20251021120317-12e515614c61
-	github.com/go-ap/storage-fs v0.0.0-20251021120228-bf861e3452ea
-	github.com/go-ap/storage-sqlite v0.0.0-20251021120242-ce2fc799adec
+	github.com/go-ap/processing v0.0.0-20251022104105-765cb47451a9
+	github.com/go-ap/storage-badger v0.0.0-20251022105000-1465ed84376b
+	github.com/go-ap/storage-boltdb v0.0.0-20251022104949-79f413ab4eef
+	github.com/go-ap/storage-fs v0.0.0-20251022104854-d1d2722a5d02
+	github.com/go-ap/storage-sqlite v0.0.0-20251022104924-005c6637add2
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 )
@@ -28,10 +28,10 @@ require (
 	github.com/dgraph-io/badger/v4 v4.8.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/go-ap/activitypub v0.0.0-20251021115032-035023aa5f64
-	github.com/go-ap/cache v0.0.0-20251021115127-89cd939bc784 // indirect
-	github.com/go-ap/client v0.0.0-20251021120056-8675aff74c01
-	github.com/go-ap/filters v0.0.0-20251007131616-3481286d74d2
+	github.com/go-ap/activitypub v0.0.0-20251022102841-0eb874c47d76
+	github.com/go-ap/cache v0.0.0-20251022103302-62495d7c9c9c // indirect
+	github.com/go-ap/client v0.0.0-20251022103529-d36fdb767217
+	github.com/go-ap/filters v0.0.0-20251022103319-90404afee13d
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
