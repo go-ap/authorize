@@ -7,13 +7,13 @@ require (
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
 	git.sr.ht/~mariusor/wrapper v0.0.0-20250504120759-5fa47ac25e08
 	github.com/alecthomas/kong v1.12.1
-	github.com/go-ap/auth v0.0.0-20251015094953-0f8a7ee86d5d
+	github.com/go-ap/auth v0.0.0-20251021120136-6ea8f5eae1de
 	github.com/go-ap/errors v0.0.0-20250905102357-4480b47a00c4
-	github.com/go-ap/processing v0.0.0-20251015095030-702415ae9342
-	github.com/go-ap/storage-badger v0.0.0-20251007134309-7d5925a0e403
-	github.com/go-ap/storage-boltdb v0.0.0-20251007134242-7f27b5473da2
-	github.com/go-ap/storage-fs v0.0.0-20251008174442-fd182fff43bc
-	github.com/go-ap/storage-sqlite v0.0.0-20251007134217-431d6fcd4f52
+	github.com/go-ap/processing v0.0.0-20251021120159-9e357b7b59c0
+	github.com/go-ap/storage-badger v0.0.0-20251021120344-27cbf95711b8
+	github.com/go-ap/storage-boltdb v0.0.0-20251021120317-12e515614c61
+	github.com/go-ap/storage-fs v0.0.0-20251021120228-bf861e3452ea
+	github.com/go-ap/storage-sqlite v0.0.0-20251021120242-ce2fc799adec
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 )
@@ -28,9 +28,9 @@ require (
 	github.com/dgraph-io/badger/v4 v4.8.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/go-ap/activitypub v0.0.0-20251007131428-e3b22fbf6257
-	github.com/go-ap/cache v0.0.0-20251007131541-7f856f34616b // indirect
-	github.com/go-ap/client v0.0.0-20251015081206-edd80e9789d4
+	github.com/go-ap/activitypub v0.0.0-20251021115032-035023aa5f64
+	github.com/go-ap/cache v0.0.0-20251021115127-89cd939bc784 // indirect
+	github.com/go-ap/client v0.0.0-20251021120056-8675aff74c01
 	github.com/go-ap/filters v0.0.0-20251007131616-3481286d74d2
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
@@ -40,7 +40,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jdkato/prose v1.2.1 // indirect
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/mariusor/qstring v0.0.0-20200204164351-5a99d46de39d // indirect
 	github.com/mariusor/render v1.5.1-0.20250901122421-8ac127627c3f
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -61,7 +61,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b // indirect
+	golang.org/x/exp v0.0.0-20251017212417-90e834f514db // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
