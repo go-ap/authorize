@@ -26,8 +26,8 @@ import (
 )
 
 type PasswordChanger interface {
-	PasswordSet(vocab.Item, []byte) error
-	PasswordCheck(vocab.Item, []byte) error
+	PasswordSet(vocab.IRI, []byte) error
+	PasswordCheck(vocab.IRI, []byte) error
 }
 
 type account struct {
@@ -539,7 +539,7 @@ func checkPw(it vocab.Item, pw []byte, pwLoader PasswordChanger) (*account, erro
 		if found {
 			return nil
 		}
-		if err := pwLoader.PasswordCheck(p, pw); err == nil {
+		if err := pwLoader.PasswordCheck(p.ID, pw); err == nil {
 			acc.FromActor(p)
 			found = true
 		}
@@ -1034,7 +1034,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = storage.PasswordSet(actor, []byte(pw)); err != nil {
+	if err = storage.PasswordSet(actor.ID, []byte(pw)); err != nil {
 		s.HandleError(errors.NotValidf("Unable to change password")).ServeHTTP(w, r)
 		return
 	}
@@ -1044,7 +1044,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 		"pass":   mask.S(pw).String(),
 	}).Infof("Changed pw")
 
-	storage.RemoveAuthorize(tok)
+	_ = storage.RemoveAuthorize(tok)
 }
 
 func (s *Service) loadActorFromOauth2Session(w http.ResponseWriter, r *http.Request) *vocab.Actor {
