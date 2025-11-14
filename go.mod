@@ -5,7 +5,7 @@ go 1.25
 require (
 	git.sr.ht/~mariusor/lw v0.0.0-20250325163623-1639f3fb0e0d
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
-	git.sr.ht/~mariusor/storage-all v0.0.0-20251113160520-dcc2078d8755
+	git.sr.ht/~mariusor/storage-all v0.0.0-20251114152143-a6ad51110644
 	git.sr.ht/~mariusor/wrapper v0.0.0-20250504120759-5fa47ac25e08
 	github.com/alecthomas/kong v1.12.1
 	github.com/go-ap/auth v0.0.0-20251113154949-5f4c5cf309a4
@@ -30,10 +30,10 @@ require (
 	github.com/go-ap/client v0.0.0-20251112172340-641dcf1a65af
 	github.com/go-ap/filters v0.0.0-20251107171832-f29304e3da0b
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9 // indirect
-	github.com/go-ap/storage-badger v0.0.0-20251107184448-c82b82ed5b46 // indirect
-	github.com/go-ap/storage-boltdb v0.0.0-20251107184346-dcd98f6008a8 // indirect
+	github.com/go-ap/storage-badger v0.0.0-20251114150409-a8ad5be8c2dd // indirect
+	github.com/go-ap/storage-boltdb v0.0.0-20251114145348-2b94f13171c0 // indirect
 	github.com/go-ap/storage-fs v0.0.0-20251107184052-8f100554bbb5 // indirect
-	github.com/go-ap/storage-sqlite v0.0.0-20251107184234-cfa09baa0850 // indirect
+	github.com/go-ap/storage-sqlite v0.0.0-20251114152003-026fb6a610fa // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -62,7 +62,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/crypto v0.44.0 // indirect
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
+	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.33.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
