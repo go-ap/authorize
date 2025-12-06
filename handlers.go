@@ -711,6 +711,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 		a.FinishAccessRequest(resp, r, ar)
 		authCtx["authorized"] = ar.Authorized
+		authCtx["code"] = mask.S(ar.Code).String()
 		s.Logger.WithContext(actorCtx, authCtx).Infof("Token")
 	}
 
