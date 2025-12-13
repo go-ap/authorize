@@ -6,8 +6,10 @@ MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
 PROJECT_NAME := auth
+APP_HOSTNAME ?= $(PROJECT_NAME)
 ENV ?= dev
-STORAGE ?=
+STORAGE ?= all
+VERSION ?= HEAD
 
 LDFLAGS ?= -X main.version=$(VERSION)
 BUILDFLAGS ?= -a -ldflags '$(LDFLAGS)' -tags "$(TAGS)"
@@ -23,11 +25,7 @@ ifneq ($(STORAGE), )
 endif
 
 export CGO_ENABLED=0
-
-ifneq ($(ENV), dev)
-	LDFLAGS += -s -w -extldflags "-static"
-	BUILDFLAGS += -trimpath
-endif
+export GOEXPERIMENT=greenteagc
 
 ifeq ($(shell git describe --always > /dev/null 2>&1 ; echo $$?), 0)
 	BRANCH=$(shell git rev-parse --abbrev-ref HEAD | tr '/' '-')
@@ -38,34 +36,38 @@ ifeq ($(shell git describe --tags > /dev/null 2>&1 ; echo $$?), 0)
 	VERSION ?= $(shell git describe --tags | tr '/' '-')
 endif
 
+ifneq ($(ENV), dev)
+	LDFLAGS += -s -w -extldflags "-static"
+	BUILDFLAGS += -trimpath
+endif
+
 BUILD := $(GO) build $(BUILDFLAGS)
 TEST := $(GO) test $(BUILDFLAGS)
 
-.PHONY: all auth download run clean images test coverage
+.PHONY: all auth cert clean test coverage download help
+
+.DEFAULT_GOAL := help
+
+help: ## Help target that shows this message.
+	@sed -rn 's/^([^:]+):.*[ ]##[ ](.+)/\1:\2/p' $(MAKEFILE_LIST) | column -ts: -l2
 
 all: auth
 
-download: go.sum
+download: go.sum ## Downloads dependencies and tidies the go.mod file.
 
 go.sum: go.mod
 	$(GO) mod download all
 	$(GO) mod tidy
 
-auth: bin/auth
+auth: bin/auth ## Builds the main Authorization service binary.
 bin/auth: go.mod go.sum $(APPSOURCES)
 	$(BUILD) -o $@ ./cmd/auth
 ifneq ($(ENV),dev)
 	$(UPX) -q --mono --no-progress --best $@ || true
 endif
 
-run: ./bin/auth
-	@./bin/auth
-
-clean:
+clean: ## Cleanup the build workspace.
 	-$(RM) bin/*
-	$(MAKE) -C images $@
-
-images:
 	$(MAKE) -C images $@
 
 test: TEST_TARGET := .
@@ -75,3 +77,8 @@ test: go.sum
 coverage: TEST_TARGET := .
 coverage: TEST_FLAGS += -covermode=count -coverprofile $(PROJECT_NAME).coverprofile
 coverage: test
+
+cert: bin/$(APP_HOSTNAME).pem ## Create a certificate.
+bin/$(APP_HOSTNAME).pem: bin/$(APP_HOSTNAME).key bin/$(APP_HOSTNAME).crt
+bin/$(APP_HOSTNAME).key bin/$(APP_HOSTNAME).crt:
+	./images/gen-certs.sh ./bin/$(APP_HOSTNAME)
