@@ -131,6 +131,7 @@ func main() {
 		r.Post("/authorize", h.Authorize)
 		// Access token endpoint
 		r.Post("/token", h.Token)
+		r.Post("/client", h.ClientRegistration)
 
 		r.Group(func(r chi.Router) {
 			r.Get("/pw", h.ShowChangePw)

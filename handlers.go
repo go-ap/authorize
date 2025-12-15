@@ -30,6 +30,11 @@ type PasswordChanger interface {
 	PasswordCheck(vocab.IRI, []byte) error
 }
 
+type MetadataStorage interface {
+	LoadMetadata(vocab.IRI, any) error
+	SaveMetadata(vocab.IRI, any) error
+}
+
 type account struct {
 	username string
 	pw       string
@@ -76,31 +81,12 @@ type Service struct {
 	Logger lw.Logger
 }
 
-// GenerateID creates an IRI that can be used to uniquely identify the "it" item, based on the collection "col" and
-// its creator "by"
-func (s *Service) generateID(it vocab.Item, _ vocab.Item, by vocab.Item) (vocab.ID, error) {
-	app, _, err := s.findMatchingStorage(iriBaseURL(it.GetLink()))
-	if err != nil {
-		return "", errors.NewNotFound(err, "not found")
-	}
-	base := app.GetLink().GetID()
-	typ := it.GetType()
-
-	var partOf vocab.IRI
-	if vocab.ActivityTypes.Contains(typ) || vocab.IntransitiveActivityTypes.Contains(typ) {
-		partOf = filters.ActivitiesType.IRI(base)
-	} else if vocab.ActorTypes.Contains(typ) || typ == vocab.ActorType {
-		partOf = filters.ActorsType.IRI(base)
-	} else {
-		partOf = filters.ObjectsType.IRI(base)
-	}
-	return generateID(it, partOf, by)
-}
-
 // GenerateID generates a unique identifier for the 'it' [vocab.Item].
-func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item) (vocab.ID, error) {
-	uid := uuid.New()
-	id := partOf.GetLink().AddPath(uid)
+func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item, uid uuid.UUID) (vocab.ID, error) {
+	if uid == nil {
+		uid = uuid.NewRandom()
+	}
+	id := partOf.GetLink().AddPath(uid.String())
 	typ := it.GetType()
 	if vocab.ActivityTypes.Contains(typ) || vocab.IntransitiveActivityTypes.Contains(typ) {
 		err := vocab.OnIntransitiveActivity(it, func(a *vocab.IntransitiveActivity) error {
@@ -203,28 +189,6 @@ func (s *Service) IsValidRequest(r *http.Request) bool {
 	return true
 }
 
-func IndieAuthClientActor(author vocab.Item, url *url.URL) *vocab.Actor {
-	now := time.Now().UTC()
-	preferredUsername := url.Host
-	p := vocab.Person{
-		Type:         vocab.ApplicationType,
-		AttributedTo: author.GetLink(),
-		Audience:     vocab.ItemCollection{vocab.PublicNS},
-		Generator:    author.GetLink(),
-		Published:    now,
-		Summary: vocab.NaturalLanguageValues{
-			vocab.DefaultLang: vocab.Content("IndieAuth generated actor"),
-		},
-		Updated: now,
-		PreferredUsername: vocab.NaturalLanguageValues{
-			vocab.DefaultLang: vocab.Content(preferredUsername),
-		},
-		URL: vocab.IRI(url.String()),
-	}
-
-	return &p
-}
-
 func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 	_ = r.ParseForm()
 	clientID, err := url.QueryUnescape(r.FormValue(clientIdKey))
@@ -287,11 +251,9 @@ func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 		}
 	}
 	if clientActor == nil {
-		newClient := IndieAuthClientActor(actor, clientURL)
-		if newId, err := s.generateID(newClient, vocab.Outbox.IRI(actor), nil); err == nil {
-			newClient.ID = newId
-		}
-		clientActor, err = storage.Save(newClient)
+		// TODO(marius): fix IndieAuth automatic client creation
+		//    See https://todo.sr.ht/~mariusor/go-activitypub/34
+		clientActor, err = NewIndieAuthActor(storage, clientURL, actor)
 		if err != nil {
 			return nil, err
 		}
@@ -364,20 +326,6 @@ func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
 		return nil, errNotFound
 	}
 	return actor, nil
-}
-
-type secret string
-
-func (s secret) String() string {
-	if len(s) <= 3 {
-		return "***"
-	}
-	if len(s) <= 5 {
-		hidden := strings.Repeat("*", len(s)-2)
-		return hidden + string(s[len(s)-2:])
-	}
-	hidden := strings.Repeat("*", len(s)-3)
-	return string(s[0]) + hidden + string(s[len(s)-2:])
 }
 
 func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
