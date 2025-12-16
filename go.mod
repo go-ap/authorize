@@ -10,7 +10,7 @@ require (
 	github.com/alecthomas/kong v1.12.1
 	github.com/go-ap/auth v0.0.0-20251215103232-fa16f4c042c2
 	github.com/go-ap/errors v0.0.0-20250905102357-4480b47a00c4
-	github.com/go-ap/processing v0.0.0-20251215103356-a4358ebe99a2
+	github.com/go-ap/processing v0.0.0-20251216153824-67feea4fa190
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 )
