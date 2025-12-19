@@ -5,8 +5,8 @@ go 1.25
 require (
 	git.sr.ht/~mariusor/lw v0.0.0-20250325163623-1639f3fb0e0d
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
-	git.sr.ht/~mariusor/storage-all v0.0.0-20251217104828-e204343019eb
-	git.sr.ht/~mariusor/wrapper v0.0.0-20250504120759-5fa47ac25e08
+	git.sr.ht/~mariusor/storage-all v0.0.0-20251219125852-2a126e5671bb
+	git.sr.ht/~mariusor/wrapper v0.0.0-20251219150913-93638cf5461b
 	github.com/alecthomas/kong v1.12.1
 	github.com/go-ap/auth v0.0.0-20251217104215-2c09b3122a42
 	github.com/go-ap/errors v0.0.0-20251216162958-cb99ea99a461
@@ -30,8 +30,8 @@ require (
 	github.com/go-ap/client v0.0.0-20251217104137-490438ffbafc
 	github.com/go-ap/filters v0.0.0-20251217104054-a89c371835ef
 	github.com/go-ap/jsonld v0.0.0-20251216162253-e38fa664ea77 // indirect
-	github.com/go-ap/storage-badger v0.0.0-20251217104628-dd1f17193ada // indirect
-	github.com/go-ap/storage-boltdb v0.0.0-20251217104604-f1b7cdc0fbbb // indirect
+	github.com/go-ap/storage-badger v0.0.0-20251218134939-77a229989de5 // indirect
+	github.com/go-ap/storage-boltdb v0.0.0-20251217163214-48e5042b4192 // indirect
 	github.com/go-ap/storage-fs v0.0.0-20251217104523-be5b0e5e23a2 // indirect
 	github.com/go-ap/storage-sqlite v0.0.0-20251217104657-485937124f96 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
@@ -72,5 +72,5 @@ require (
 	modernc.org/libc v1.67.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.40.2-0.20251208121757-c233febc9136 // indirect
+	modernc.org/sqlite v1.41.0 // indirect
 )
