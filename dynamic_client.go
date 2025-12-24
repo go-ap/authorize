@@ -55,6 +55,9 @@ func NewIndieAuthActor(storage FullStorage, clientURL *url.URL, actor vocab.Item
 	if err != nil {
 		return nil, err
 	}
+	if vocab.IsNil(author) || auth.AnonymousActor.Equals(author) {
+		return nil, errors.NotFoundf("invalid client issuer Actor")
+	}
 	newClient := GeneratedClientActor(actor, indieAuthInfo)
 	return AddActor(storage, newClient, nil, *author)
 }
@@ -70,14 +73,16 @@ func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationReq
 
 	clientActor := vocab.Application{
 		Type:              vocab.ApplicationType,
-		AttributedTo:      author.GetLink(),
 		Audience:          vocab.ItemCollection{vocab.PublicNS},
-		Generator:         author.GetLink(),
 		Published:         now,
 		Updated:           now,
 		PreferredUsername: vocab.DefaultNaturalLanguage(clientRequest.ClientName),
 		Summary:           vocab.DefaultNaturalLanguage("Generated actor"),
 		URL:               urls,
+	}
+	if !vocab.IsNil(author) {
+		clientActor.AttributedTo = author.GetLink()
+		clientActor.Generator = author.GetLink()
 	}
 	if newId, err := generateClientID(clientActor, vocab.Outbox.IRI(author), author, clientRequest.SoftwareID); err == nil {
 		clientActor.ID = newId
@@ -112,7 +117,7 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 		s.HandleError(errors.Newf("no storage found for iri %s", actorIRI)).ServeHTTP(w, r)
 		return
 	}
-	if self.Equals(auth.AnonymousActor) {
+	if vocab.IsNil(self) || self.Equals(auth.AnonymousActor) {
 		s.HandleError(errors.NotFoundf("not found")).ServeHTTP(w, r)
 		return
 	}
