@@ -53,6 +53,8 @@ func checkOriginForBlockedActors(r *http.Request, origin string) bool {
 	return true
 }
 
+const defaultGraceWait = 1500 * time.Millisecond
+
 func main() {
 	ktx := kong.Parse(
 		&Auth,
@@ -142,7 +144,7 @@ func main() {
 	r.Route("/actors/{id}/oauth", routes)
 	r.Route("/oauth", routes)
 
-	setters := []w.SetFn{w.Handler(r)}
+	setters := []w.SetFn{w.Handler(r), w.GracefulWait(defaultGraceWait)}
 
 	if len(Auth.CertPath)+len(Auth.KeyPath) > 0 {
 		setters = append(setters, w.WithTLSCert(Auth.CertPath, Auth.KeyPath))
@@ -157,26 +159,32 @@ func main() {
 		setters = append(setters, w.OnTCP(Auth.ListenOn))
 	}
 
-	ctx, cancelFn := context.WithTimeout(context.TODO(), defaultTimeout)
+	ctx, cancelFn := context.WithCancel(context.TODO())
+	defer cancelFn()
+
+	l = l.WithContext(logCtx)
 
 	// Get start/stop functions for the http server
 	srvRun, srvStop := w.HttpServer(setters...)
-	l.Infof("Listening for authorization requests")
-	stopFn := func(ctx context.Context) {
+	stopFn := func(ctx context.Context) error {
+		l.Infof("Shutting down")
 		for _, st := range stores {
 			st.Close()
 		}
-		if err := srvStop(ctx); err != nil {
-			l.Errorf("%+v", err)
-		} else {
-			l.Infof("Stopped")
-		}
+		return srvStop(ctx)
 	}
-	defer stopFn(ctx)
 
+	exitWithErrOrInterrupt := func(err error, exit chan<- error) {
+		if err == nil {
+			err = w.Interrupt
+		}
+		exit <- err
+	}
+
+	l.Infof("Listening for authorization requests")
 	err = w.RegisterSignalHandlers(w.SignalHandlers{
 		syscall.SIGHUP: func(_ chan<- error) {
-			l.Infof("SIGHUP received, reloading configuration")
+			l.Debugf("SIGHUP received, reloading configuration")
 		},
 		syscall.SIGUSR1: func(_ chan<- error) {
 			authorize.InMaintenanceMode = !authorize.InMaintenanceMode
@@ -184,32 +192,29 @@ func main() {
 		},
 		syscall.SIGUSR2: func(_ chan<- error) {
 			authorize.InDebugMode = !authorize.InDebugMode
-			l.WithContext(lw.Ctx{"maintenance": authorize.InDebugMode}).Debugf("SIGUSR2 received")
+			l.WithContext(lw.Ctx{"debug": authorize.InDebugMode}).Debugf("SIGUSR2 received")
 		},
 		syscall.SIGINT: func(exit chan<- error) {
-			l.Infof("SIGINT received, stopping")
-			cancelFn()
-			stopFn(ctx)
-			exit <- w.Interrupt
+			l.WithContext(lw.Ctx{"wait": defaultGraceWait}).Debugf("SIGINT received, stopping")
+			exitWithErrOrInterrupt(stopFn(ctx), exit)
 		},
 		syscall.SIGTERM: func(exit chan<- error) {
-			l.Infof("SIGTERM received, force stopping")
-			cancelFn()
-			stopFn(ctx)
-			exit <- w.Interrupt
+			l.WithContext(lw.Ctx{"wait": defaultGraceWait}).Debugf("SIGTERM received, force stopping")
+			exitWithErrOrInterrupt(stopFn(ctx), exit)
 		},
 		syscall.SIGQUIT: func(exit chan<- error) {
-			l.Infof("SIGQUIT received, force stopping with core-dump")
+			l.Debugf("SIGQUIT received, ungraceful force stopping")
+			// NOTE(marius): to skip any graceful wait on the listening server, cancel the context first
 			cancelFn()
-			stopFn(ctx)
-			exit <- w.Interrupt
+			exitWithErrOrInterrupt(stopFn(ctx), exit)
 		},
 	}).Exec(ctx, srvRun)
-	l.Infof("Shutting down")
 
 	if err != nil {
 		l.Errorf("Error: %+s", err)
 		ktx.Exit(1)
+	} else {
+		l.Infof("Stopped")
 	}
 	ktx.Exit(0)
 }
