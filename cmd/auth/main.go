@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/go-ap/authorize"
 	"github.com/go-ap/authorize/internal/config"
 	"github.com/go-ap/client"
+	"github.com/go-ap/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
@@ -115,8 +115,12 @@ func main() {
 	}
 	l = l.WithContext(logCtx)
 
+	allowedOrigins := []string{"https://*"}
+	if !env.IsProd() {
+		allowedOrigins = append(allowedOrigins, "http://*")
+	}
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://*"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
@@ -143,6 +147,7 @@ func main() {
 
 	r.Route("/actors/{id}/oauth", routes)
 	r.Route("/oauth", routes)
+	r.NotFound(errors.NotFound.ServeHTTP)
 
 	setters := []w.SetFn{w.Handler(r), w.GracefulWait(defaultGraceWait)}
 
