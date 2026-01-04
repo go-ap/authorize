@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"git.sr.ht/~mariusor/lw"
+	m "git.sr.ht/~mariusor/servermux"
 	w "git.sr.ht/~mariusor/wrapper"
 	"github.com/alecthomas/kong"
 	"github.com/go-ap/authorize"
@@ -149,19 +150,19 @@ func main() {
 	r.Route("/oauth", routes)
 	r.NotFound(errors.NotFound.ServeHTTP)
 
-	setters := []w.SetFn{w.Handler(r), w.GracefulWait(defaultGraceWait)}
+	setters := []m.SetFn{m.Handler(r)}
 
 	if len(Auth.CertPath)+len(Auth.KeyPath) > 0 {
-		setters = append(setters, w.WithTLSCert(Auth.CertPath, Auth.KeyPath))
+		setters = append(setters, m.WithTLSCert(Auth.CertPath, Auth.KeyPath))
 	}
 	dir, _ := filepath.Split(Auth.ListenOn)
 	if Auth.ListenOn == "systemd" {
-		setters = append(setters, w.OnSystemd())
+		setters = append(setters, m.OnSystemd())
 	} else if _, err := os.Stat(dir); err == nil {
-		setters = append(setters, w.OnSocket(Auth.ListenOn))
+		setters = append(setters, m.OnSocket(Auth.ListenOn))
 		defer func() { _ = os.RemoveAll(Auth.ListenOn) }()
 	} else {
-		setters = append(setters, w.OnTCP(Auth.ListenOn))
+		setters = append(setters, m.OnTCP(Auth.ListenOn))
 	}
 
 	ctx, cancelFn := context.WithCancel(context.TODO())
@@ -170,13 +171,19 @@ func main() {
 	l = l.WithContext(logCtx)
 
 	// Get start/stop functions for the http server
-	srvRun, srvStop := w.HttpServer(setters...)
+	httpSrv, err := m.HttpServer(setters...)
+	if err != nil {
+		l.WithContext(lw.Ctx{"err": err}).Errorf("Failed to initialize HTTP server")
+		os.Exit(1)
+	}
+
+	s, err := m.Mux(m.WithServer(httpSrv), m.GracefulWait(defaultGraceWait))
 	stopFn := func(ctx context.Context) error {
 		l.Infof("Shutting down")
 		for _, st := range stores {
 			st.Close()
 		}
-		return srvStop(ctx)
+		return s.Stop(ctx)
 	}
 
 	exitWithErrOrInterrupt := func(err error, exit chan<- error) {
@@ -213,10 +220,10 @@ func main() {
 			cancelFn()
 			exitWithErrOrInterrupt(stopFn(ctx), exit)
 		},
-	}).Exec(ctx, srvRun)
+	}).Exec(ctx, s.Start)
 
 	if err != nil {
-		l.Errorf("Error: %+s", err)
+		l.WithContext(lw.Ctx{"err": err}).Errorf("Failed")
 		ktx.Exit(1)
 	} else {
 		l.Infof("Stopped")
