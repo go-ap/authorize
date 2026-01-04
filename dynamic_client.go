@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"git.sr.ht/~mariusor/lw"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/errors"
@@ -110,6 +109,54 @@ func actorIRIFromDynamicClientReq(r *http.Request) vocab.IRI {
 	return vocab.IRI("https://" + filepath.Join(r.Host, strings.Replace(r.RequestURI, "oauth/client", "", 1)))
 }
 
+type ClientRegistrationErrorCode string
+
+const (
+	// InvalidRedirectURI The value of one or more redirection URIs is invalid.
+	InvalidRedirectURI ClientRegistrationErrorCode = "invalid_redirect_uri"
+	// InvalidClientMetadata The value of one of the client metadata fields is invalid and the
+	// server has rejected this request.  Note that an authorization
+	// server MAY choose to substitute a valid value for any requested
+	// parameter of a client's metadata.
+	InvalidClientMetadata ClientRegistrationErrorCode = "invalid_client_metadata"
+	// InvalidSoftwareStatement The software statement presented is invalid.
+	InvalidSoftwareStatement ClientRegistrationErrorCode = "invalid_software_statement"
+	// UnapprovedSoftwareStatement The software statement presented is not approved for use by this
+	// authorization server.
+	UnapprovedSoftwareStatement ClientRegistrationErrorCode = "unapproved_software_statement"
+)
+
+// ValidateClientRegistrationRequest
+// When an OAuth 2.0 error condition occurs, such as the client
+// presenting an invalid initial access token, the authorization server
+// returns an error response appropriate to the OAuth 2.0 token type.
+// When a registration error condition occurs, the authorization server
+// returns an HTTP 400 status code (unless otherwise specified) with
+// content type "application/json" consisting of a JSON object [RFC7159]
+// describing the error in the response body.
+// Two members are defined for inclusion in the JSON object:
+func ValidateClientRegistrationRequest(req ClientRegistrationRequest) error {
+	// TODO(marius): validate individual redirect URIs
+	if len(req.RedirectUris) == 0 {
+		return ClientRegistrationError{
+			ErrorCode:        InvalidRedirectURI,
+			ErrorDescription: "no redirect URIs were provided",
+		}
+	}
+	return nil
+}
+
+type ClientRegistrationError struct {
+	// ErrorCode  Single ASCII error code string.
+	ErrorCode ClientRegistrationErrorCode `json:"error"`
+	// ErrorDescription Human-readable ASCII text description of the error used for debugging.
+	ErrorDescription string `json:"error_description"`
+}
+
+func (e ClientRegistrationError) Error() string {
+	return string(e.ErrorCode) + ": " + e.ErrorDescription
+}
+
 func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 	actorIRI := actorIRIFromDynamicClientReq(r)
 	self, st, err := s.findMatchingStorage(string(actorIRI))
@@ -124,7 +171,6 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil || len(body) == 0 {
-		s.Logger.WithContext(lw.Ctx{"err": err}).Errorf("Failed loading body")
 		s.HandleError(errors.NewNotValid(err, "unable to read request body")).ServeHTTP(w, r)
 		return
 	}
@@ -132,6 +178,11 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 	regReq := ClientRegistrationRequest{}
 	if err := json.Unmarshal(body, &regReq); err != nil {
 		s.HandleError(errors.NewBadRequest(err, "invalid RFC7591 payload")).ServeHTTP(w, r)
+		return
+	}
+
+	if err = ValidateClientRegistrationRequest(regReq); err != nil {
+		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
