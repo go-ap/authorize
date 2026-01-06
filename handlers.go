@@ -282,7 +282,6 @@ func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
 		if act, ok := actor.(*vocab.Actor); ok {
 			return act, nil
 		}
-
 	}
 	return nil, nil
 }
@@ -452,6 +451,11 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			handle := r.PostFormValue("handle")
+			if vocab.IsNil(actor) {
+				if acc, err := s.loadAccountFromPost(r); err == nil {
+					actor = acc.actor
+				}
+			}
 			if vocab.IsNil(actor) || vocab.PreferredNameOf(actor) != handle {
 				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx).Errorf("Authorization failed")
