@@ -6,12 +6,12 @@ require (
 	git.sr.ht/~mariusor/lw v0.0.0-20250325163623-1639f3fb0e0d
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
 	git.sr.ht/~mariusor/servermux v0.0.0-20260104112549-0a3ff90bf795
-	git.sr.ht/~mariusor/storage-all v0.0.0-20260102121942-5834a4e39424
+	git.sr.ht/~mariusor/storage-all v0.0.0-20260108121959-8c5f0d6f9ef9
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.12.1
 	github.com/go-ap/auth v0.0.0-20260102113527-7eacd35a8b49
 	github.com/go-ap/errors v0.0.0-20251229095444-2702aa2d8569
-	github.com/go-ap/processing v0.0.0-20260102113618-83e5c1da3baf
+	github.com/go-ap/processing v0.0.0-20260107160342-39d0c0ea7a97
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
 )
@@ -52,8 +52,8 @@ require (
 	github.com/go-ap/jsonld v0.0.0-20251216162253-e38fa664ea77 // indirect
 	github.com/go-ap/storage-badger v0.0.0-20260102114145-aa5bc644359e // indirect
 	github.com/go-ap/storage-boltdb v0.0.0-20260102114123-757dc56b2df9 // indirect
-	github.com/go-ap/storage-fs v0.0.0-20260102113726-6d94ccf75406 // indirect
-	github.com/go-ap/storage-sqlite v0.0.0-20260102121418-4baf35f75d8a // indirect
+	github.com/go-ap/storage-fs v0.0.0-20260107121028-2811b990146e // indirect
+	github.com/go-ap/storage-sqlite v0.0.0-20260108113015-44b4272b36f5 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect
-	github.com/mattn/go-sqlite3 v1.14.32 // indirect
+	github.com/mattn/go-sqlite3 v1.14.33 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
@@ -94,7 +94,7 @@ require (
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
