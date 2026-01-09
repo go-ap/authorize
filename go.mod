@@ -9,7 +9,7 @@ require (
 	git.sr.ht/~mariusor/storage-all v0.0.0-20260108121959-8c5f0d6f9ef9
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.12.1
-	github.com/go-ap/auth v0.0.0-20260102113527-7eacd35a8b49
+	github.com/go-ap/auth v0.0.0-20260109092107-38c0f9cf6659
 	github.com/go-ap/errors v0.0.0-20251229095444-2702aa2d8569
 	github.com/go-ap/processing v0.0.0-20260107160342-39d0c0ea7a97
 	github.com/go-chi/chi/v5 v5.2.3
@@ -101,5 +101,5 @@ require (
 	modernc.org/libc v1.67.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.42.2 // indirect
+	modernc.org/sqlite v1.43.0 // indirect
 )
