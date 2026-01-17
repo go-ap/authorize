@@ -27,6 +27,11 @@ import (
 	"github.com/pborman/uuid"
 )
 
+type MetadataStorage interface {
+	LoadMetadata(vocab.IRI, any) error
+	SaveMetadata(vocab.IRI, any) error
+}
+
 // GenerateID creates an IRI that can be used to uniquely identify the "it" item, based on the collection "col" and
 // its creator "by"
 func generateClientID(it vocab.Item, _ vocab.Item, by vocab.Item, uid uuid.UUID) (vocab.ID, error) {
