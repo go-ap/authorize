@@ -1,5 +1,5 @@
-//go:build !dev
-
 package authorize
 
-var IsDev = false
+import "sync/atomic"
+
+var IsDev atomic.Bool

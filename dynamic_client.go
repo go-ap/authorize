@@ -443,6 +443,7 @@ type ClientRegistrationResponse struct {
 	// measured in UTC until the date/time of expiration.
 	Expires int64 `json:"client_secret_expires_at"`
 }
+
 type ClientRegistrationRequest struct {
 	// RedirectUris Array of redirection URI strings for use in redirect-based flows
 	// such as the authorization code and implicit flows.  As required by

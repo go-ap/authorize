@@ -96,10 +96,7 @@ func main() {
 
 	r := chi.NewMux()
 
-	ua := fmt.Sprintf("GoActivityPub//authorize (+github.com/go-ap/authorize@%s)", version)
-	baseClient := &http.Client{
-		Transport: client.UserAgentTransport(ua, http.DefaultTransport),
-	}
+	baseClient := authorize.Client(version)
 	h := authorize.Service{
 		Stores: stores,
 		Client: client.New(
