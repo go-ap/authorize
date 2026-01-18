@@ -49,21 +49,15 @@ func generateClientID(it vocab.Item, _ vocab.Item, by vocab.Item, uid uuid.UUID)
 	return generateID(it, partOf, by, uid)
 }
 
-func NewIndieAuthActor(storage FullStorage, clientURL *url.URL, actor vocab.Item) (*vocab.Person, error) {
-	indieAuthInfo := ClientRegistrationRequest{
-		ClientName: clientURL.Host,
-		ClientURI:  clientURL.String(),
-		SoftwareID: uuid.NewRandom(),
+func GenerateBasicClientRegistrationRequest(clientID vocab.IRI, redirect []string) *ClientRegistrationRequest {
+	u, _ := clientID.URL()
+	basicClientInfo := ClientRegistrationRequest{
+		ClientName:   u.Host,
+		ClientURI:    string(clientID),
+		RedirectUris: redirect,
+		SoftwareID:   uuid.NewRandom(),
 	}
-	author, err := vocab.ToActor(actor)
-	if err != nil {
-		return nil, err
-	}
-	if vocab.IsNil(author) || auth.AnonymousActor.Equals(author) {
-		return nil, errors.NotFoundf("invalid client issuer Actor")
-	}
-	newClient := GeneratedClientActor(actor, indieAuthInfo)
-	return AddActor(storage, newClient, nil, *author)
+	return &basicClientInfo
 }
 
 func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationRequest) *vocab.Actor {
@@ -252,20 +246,8 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := AddKeyToItem(st, clientActor, "RSA"); err != nil {
-			s.HandleError(errors.Annotatef(err, "Error saving metadata for application %s", name)).ServeHTTP(w, r)
-			return
-		}
-
 		userData, _ := json.Marshal(regReq)
-		d = &osin.DefaultClient{
-			Id:          id,
-			Secret:      string(pw),
-			RedirectUri: strings.Join(redirect, "\n"),
-			UserData:    userData,
-		}
-
-		if err = st.CreateClient(d); err != nil {
+		if err = CreateOAuthClient(st, clientActor, redirect, pw, userData); err != nil {
 			s.HandleError(errors.Newf("unable to save OAuth2 client application")).ServeHTTP(w, r)
 			return
 		}

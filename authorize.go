@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,101 +32,123 @@ func (s *Service) authFromRequest(req *http.Request) (*auth.Server, error) {
 	return s.auth(app, db)
 }
 
-func (s *Service) ValidateClient(r *http.Request) (*vocab.Actor, error) {
+func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) {
+	// NOTE(marius): we should try to use Evan's diagram:
+	// https://github.com/swicg/activitypub-api/issues/1#issuecomment-3708524521
 	_ = r.ParseForm()
-	clientID, err := url.QueryUnescape(r.FormValue(clientIdKey))
+	client, err := url.QueryUnescape(r.FormValue(clientIdKey))
 	if err != nil {
 		return nil, err
 	}
-	if clientID == "" {
+	if client == "" {
 		return nil, nil
 	}
-	clientURL, err := url.Parse(clientID)
-	if err != nil {
-		return nil, nil
-	}
+	clientID := vocab.IRI(client)
 
-	unescapedUri, err := url.QueryUnescape(r.FormValue(redirectUriKey))
-	if err != nil {
-		return nil, err
-	}
-
-	// load the 'me' value of the actor that wants to authenticate
-	me, err := url.QueryUnescape(r.FormValue(meKey))
-	if err != nil {
-		return nil, err
-	}
-
-	app, storage, err := s.findMatchingStorage(baseURL(r)...)
+	app, repo, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		return nil, err
 	}
 	baseIRI := app.GetLink()
 
+	var actor vocab.Actor
 	// check for existing user actor
-	var actor vocab.Item
+	// load the 'me' value of the actor that wants to authenticate
+	me, _ := url.QueryUnescape(r.FormValue(meKey))
 	if me != "" {
+		// NOTE(marius): this is an indie auth request
 		iri := SearchActorsIRI(baseIRI, ByType(vocab.PersonType), ByURL(vocab.IRI(me)))
-		actor, err = storage.Load(iri)
+		maybeActor, err := repo.Load(iri)
 		if err != nil {
 			return nil, err
 		}
-		if actor == nil {
-			return nil, errors.NotFoundf("unknown actor")
-		}
-	}
-	// check for existing application actor
-	clientActor, err := storage.Load(vocab.IRI(clientID))
-	if err != nil && errors.IsNotFound(err) {
-		iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(vocab.IRI(clientID)))
-		actors, err := storage.Load(iri, filters.SameURL(vocab.IRI(clientID)), filters.HasType(vocab.ApplicationType))
-		if err != nil {
-			return nil, err
-		}
-		err = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
-			if len(col.Collection()) == 1 {
-				clientActor = col.Collection().First()
-			}
+		err = vocab.OnActor(maybeActor, func(act *vocab.Actor) error {
+			actor = *act
 			return nil
 		})
 		if err != nil {
+			return nil, errors.NotFoundf("unknown actor")
+		}
+	}
+
+	// check for existing application actor
+	clientActorItem, err := repo.Load(clientID)
+	if err != nil && errors.IsNotFound(err) {
+		// NOTE(marius): fallback to searching for the OAuth2 application by URL
+		iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(clientID))
+		maybeClients, err := repo.Load(iri, filters.SameURL(vocab.IRI(client)), filters.HasType(vocab.ApplicationType))
+		if err != nil && !errors.IsNotFound(err) {
+			return nil, err
+		}
+		err = vocab.OnActor(maybeClients, func(act *vocab.Actor) error {
+			clientActorItem = act
+			return nil
+		})
+		if err != nil {
+			// NOTE(marius): loaded maybeClients were not vocab.Actor objects
 			return nil, err
 		}
 	}
-	if clientActor == nil {
-		// TODO(marius): fix IndieAuth automatic client creation
-		//    See https://todo.sr.ht/~mariusor/go-activitypub/34
-		clientActor, err = NewIndieAuthActor(storage, clientURL, actor)
+
+	var userData []byte
+	var redirect []string
+
+	unescapedUri, err := url.QueryUnescape(r.FormValue(redirectUriKey))
+	if err != nil {
+		return nil, err
+	}
+	if len(unescapedUri) > 0 {
+		redirect = append(redirect, unescapedUri)
+	}
+
+	if vocab.IsNil(clientActorItem) {
+		// NOTE(marius): if we were unable to find any local client matching ClientID,
+		// we attempt a OAuth Client ID Metadata Document based client registration mechanism.
+		res, err := FetchClientMetadata(clientID)
+		if err != nil {
+			// NOTE(marius): if OCIMD registration failed, we try an IndieAuth client
+			// TODO(marius): fix IndieAuth automatic client creation
+			//  See https://todo.sr.ht/~mariusor/go-activitypub/34
+			res = GenerateBasicClientRegistrationRequest(clientID, redirect)
+		}
+
+		redirect = res.RedirectUris
+		userData, _ = json.Marshal(res)
+		newClient := GeneratedClientActor(actor, *res)
+
+		clientActorItem, err = AddActor(repo, newClient, nil, actor)
 		if err != nil {
 			return nil, err
 		}
+		if vocab.IsNil(clientActorItem) {
+			return nil, errors.Newf("unable to generate OAuth2 client")
+		}
 	}
-	id := clientActor.GetID().String()
+
+	clientActor, ok := clientActorItem.(*vocab.Actor)
+	if !ok {
+		return nil, errors.Newf("OAuth2 client is not a valid ActivityPub actor")
+	}
+
 	// must have a valid client
-	if _, err = storage.GetClient(id); err != nil {
+	id := string(clientActor.ID)
+	if _, err = repo.GetClient(id); err != nil {
 		if errors.IsNotFound(err) {
-			// create client
-			newClient := osin.DefaultClient{
-				Id:          id,
-				Secret:      "",
-				RedirectUri: unescapedUri,
-				//UserData:    userData,
-			}
-			if err = storage.CreateClient(&newClient); err != nil {
-				return nil, err
+			if err = CreateOAuthClient(repo, clientActor, redirect, nil, userData); err != nil {
+				return nil, errors.Newf("unable to save OAuth2 client")
 			}
 		} else {
 			return nil, err
 		}
-		r.Form.Set(clientIdKey, id)
-		if osin.AuthorizeRequestType(r.FormValue(responseTypeKey)) == ID {
-			r.Form.Set(responseTypeKey, "code")
-		}
-		if act, ok := actor.(*vocab.Actor); ok {
-			return act, nil
-		}
 	}
-	return nil, nil
+
+	r.Form.Set(clientIdKey, id)
+	// TODO(marius): evaluate if this element is needed for the IndieAuth exchange or it just breaks things
+	//if osin.AuthorizeRequestType(r.FormValue(responseTypeKey)) == ID {
+	//	r.Form.Set(responseTypeKey, "code")
+	//}
+
+	return clientActor, nil
 }
 
 type login struct {
@@ -169,7 +192,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 	var actor vocab.Item = &auth.AnonymousActor
 	if s.IsValidRequest(r) {
-		if actor, err = s.ValidateClient(r); err != nil {
+		if actor, err = s.ValidateOrCreateClient(r); err != nil {
 			resp.SetError(osin.E_INVALID_REQUEST, err.Error())
 			s.redirectOrOutput(resp, w, r)
 			return
@@ -191,61 +214,66 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	var overrideRedir = false
 
 	ar := a.HandleAuthorizeRequest(resp, r)
-	if ar != nil {
-		ltx["grant_type"] = ar.Type
-		ltx["client"] = ar.Client.GetId()
-		ltx["state"] = ar.State
-		if r.Method == http.MethodGet {
-			if ar.Scope == scopeAnonymousUserCreate {
-				// FIXME(marius): this seems like a way to backdoor our selves, we need a better way
-				ar.Authorized = true
-				overrideRedir = true
-				iri := ar.HttpRequest.URL.Query().Get("actor")
-				ar.UserData = iri
-			} else {
-				// this is basically the login page, with client being set
-				m := login{title: "Login"}
-				m.account = actor
+	if ar == nil {
+		s.redirectOrOutput(resp, w, r)
+		return
+	}
 
-				var it vocab.Item
-				// check for existing application actor
-				for _, baseIRI := range baseURL(r) {
-					clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(ar.Client.GetId())
-					if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
-						clientIRI = vocab.IRI(ar.Client.GetId())
-					}
+	ltx["grant_type"] = ar.Type
+	ltx["client"] = ar.Client.GetId()
+	ltx["state"] = ar.State
+	if r.Method == http.MethodGet {
+		if ar.Scope == scopeAnonymousUserCreate {
+			// FIXME(marius): this is used by brutalinks to create users directly.
+			//  It can probably be removed because the brutalinks client should be able to create actors using
+			//  regular ActivityPub methods. The only thing remaining would be to set the password.
+			ar.Authorized = true
+			overrideRedir = true
+			iri := ar.HttpRequest.URL.Query().Get("actor")
+			ar.UserData = iri
+		} else {
+			// this is basically the login page, with client being set
+			m := login{title: "Login"}
+			m.account = actor
 
-					it, _ = loader.Load(clientIRI)
-					if !vocab.IsNil(it) {
-						m.client = it
-						m.state = ar.State
-						break
-					}
-				}
-				if vocab.IsNil(it) {
-					resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %+s", err))
-					s.redirectOrOutput(resp, w, r)
-					return
+			var it vocab.Item
+			// check for existing application actor
+			for _, baseIRI := range baseURL(r) {
+				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(ar.Client.GetId())
+				if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
+					clientIRI = vocab.IRI(ar.Client.GetId())
 				}
 
-				s.renderTemplate(r, w, "login", m)
+				it, _ = loader.Load(clientIRI)
+				if !vocab.IsNil(it) {
+					m.client = it
+					m.state = ar.State
+					break
+				}
+			}
+			if vocab.IsNil(it) {
+				resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %+s", err))
+				s.redirectOrOutput(resp, w, r)
 				return
 			}
+
+			s.renderTemplate(r, w, "login", m)
+			return
+		}
+	} else {
+		handle := r.PostFormValue("handle")
+		if vocab.IsNil(actor) {
+			if acc, err := s.loadAccountFromPost(r); err == nil {
+				actor = acc.actor
+			}
+		}
+		if vocab.IsNil(actor) || vocab.PreferredNameOf(actor) != handle {
+			resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
+			s.Logger.WithContext(ltx).Errorf("Authorization failed")
 		} else {
-			handle := r.PostFormValue("handle")
-			if vocab.IsNil(actor) {
-				if acc, err := s.loadAccountFromPost(r); err == nil {
-					actor = acc.actor
-				}
-			}
-			if vocab.IsNil(actor) || vocab.PreferredNameOf(actor) != handle {
-				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
-				s.Logger.WithContext(ltx).Errorf("Authorization failed")
-			} else {
-				ar.Authorized = true
-				ar.UserData = actor.GetLink()
-				ltx["handle"] = vocab.PreferredNameOf(actor)
-			}
+			ar.Authorized = true
+			ar.UserData = actor.GetLink()
+			ltx["handle"] = vocab.PreferredNameOf(actor)
 		}
 	}
 
@@ -255,12 +283,10 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 	ltx["redirect_uri"] = resp.URL
 	logFn := s.Logger.WithContext(ltx).Warnf
-	if ar != nil {
-		ltx["authorized"] = ar.Authorized
-		ltx["state"] = ar.State
-		if ar.Authorized {
-			logFn = s.Logger.WithContext(ltx).Infof
-		}
+	ltx["authorized"] = ar.Authorized
+	ltx["state"] = ar.State
+	if ar.Authorized {
+		logFn = s.Logger.WithContext(ltx).Infof
 	}
 	logFn("Authorize")
 	s.redirectOrOutput(resp, w, r)
@@ -270,14 +296,14 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	pw := r.PostFormValue("pw")
 	handle := r.PostFormValue("handle")
 
-	app, storage, err := s.findMatchingStorage(baseURL(r)...)
+	app, repo, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		return nil, err
 	}
 	baseIRI := app.GetLink()
 
 	searchIRI := SearchActorsIRI(baseIRI, ByName(handle), ByType(vocab.PersonType))
-	actors, err := storage.Load(searchIRI, filters.NameIs(handle), filters.HasType(vocab.PersonType))
+	actors, err := repo.Load(searchIRI, filters.NameIs(handle), filters.HasType(vocab.PersonType))
 	if err != nil {
 		return nil, errUnauthorized
 	}
@@ -293,7 +319,7 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 		"handle": handle,
 		"pass":   mask.S(pw).String(),
 	})
-	if act, err = checkPw(actors, []byte(pw), storage); err != nil {
+	if act, err = checkPw(actors, []byte(pw), repo); err != nil {
 		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
 		return nil, err
 	}
