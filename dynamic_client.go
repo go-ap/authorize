@@ -357,12 +357,19 @@ func AddKeyToItem(st FullStorage, it vocab.Item, typ string) error {
 	return nil
 }
 
-func AddActor(st FullStorage, p *vocab.Person, pw []byte, author vocab.Actor) (*vocab.Person, error) {
+func AddActor(st FullStorage, p *vocab.Actor, pw []byte, author vocab.Actor) (*vocab.Actor, error) {
 	if st == nil {
 		return nil, errors.Errorf("invalid storage backend")
 	}
 	if author.Equals(auth.AnonymousActor) {
 		return nil, errors.Errorf("invalid parent actor")
+	}
+
+	// NOTE(marius): check if we have an actor already
+	if act, err := st.Load(p.ID); err == nil {
+		// TODO(marius): do something with the password
+		//  It's possible that the incoming pw doesn't match the locally saved one ?
+		return vocab.ToActor(act)
 	}
 
 	// NOTE(marius): we don't allow the processing module to auto generate the ID for the Create,
@@ -395,6 +402,10 @@ func AddActor(st FullStorage, p *vocab.Person, pw []byte, author vocab.Actor) (*
 		return nil, err
 	}
 
+	// NOTE(marius): to allow for CIMD clients, we need to accept passwordless client creation
+	if pw == nil {
+		return p, nil
+	}
 	return p, st.PasswordSet(p.GetLink(), pw)
 }
 

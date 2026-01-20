@@ -216,7 +216,7 @@ func iriFromUserData(raw any) (vocab.IRI, error) {
 }
 
 func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
-	app, storage, err := s.findMatchingStorage(baseURL(r)...)
+	app, repo, err := s.findMatchingStorage(baseURL(r)...)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
@@ -224,13 +224,29 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	baseIRI := app.GetLink()
 
 	acc := &AnonymousAcct
-	a, err := s.auth(app, storage)
+	a, err := s.auth(app, repo)
+	if err != nil {
+		s.HandleError(err).ServeHTTP(w, r)
+		return
+	}
+	client, err := url.QueryUnescape(r.FormValue(clientIdKey))
+	if err != nil {
+		s.HandleError(err).ServeHTTP(w, r)
+		return
+	}
+	cl, err := repo.GetClient(client)
 	if err != nil {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
 
 	resp := a.NewResponse()
+	a.Config.AllowClientSecretInParams = true
+	if vocab.IRI(client).Contains(app.ID, false) && r.FormValue("client_secret") == "" {
+		// NOTE(marius): client ID and current server are on the same host
+		r.Form.Set("client_secret", cl.GetSecret())
+	}
+
 	if ar := a.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
 		var actorCtx lw.Ctx
@@ -265,7 +281,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				"code":  mask.S(ar.Code).String(),
 			}
 		}
-		actor, err := storage.Load(actorSearchIRI)
+		actor, err := repo.Load(actorSearchIRI)
 		if err != nil {
 			s.Logger.Errorf("%+s", err)
 			s.HandleError(errNotFound).ServeHTTP(w, r)
@@ -277,7 +293,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 					// NOTE(marius): This is a stupid way of doing pw authentication, as it will produce collisions
 					//  for users with the same handle/pw and it will login the first in the collection.
 					for _, actor := range col.Collection() {
-						acc, err = checkPw(actor, []byte(ar.Password), storage)
+						acc, err = checkPw(actor, []byte(ar.Password), repo)
 						if err == nil {
 							return nil
 						}
@@ -285,7 +301,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 					return errors.Newf("No actor matched the password")
 				})
 			} else {
-				acc, err = checkPw(actor, []byte(ar.Password), storage)
+				acc, err = checkPw(actor, []byte(ar.Password), repo)
 			}
 			actorCtx["handle"] = vocab.PreferredNameOf(actor)
 			if err != nil || acc == nil {

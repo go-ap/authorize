@@ -51,19 +51,23 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 	}
 	baseIRI := app.GetLink()
 
-	var actor vocab.Actor
+	author := app
 	// check for existing user actor
 	// load the 'me' value of the actor that wants to authenticate
 	me, _ := url.QueryUnescape(r.FormValue(meKey))
 	if me != "" {
 		// NOTE(marius): this is an indie auth request
 		iri := SearchActorsIRI(baseIRI, ByType(vocab.PersonType), ByURL(vocab.IRI(me)))
-		maybeActor, err := repo.Load(iri)
+		actorCol, err := repo.Load(iri)
 		if err != nil {
 			return nil, err
 		}
-		err = vocab.OnActor(maybeActor, func(act *vocab.Actor) error {
-			actor = *act
+		err = vocab.OnCollectionIntf(actorCol, func(col vocab.CollectionInterface) error {
+			maybeActor, err := vocab.ToActor(col.Collection().First())
+			if err != nil {
+				return err
+			}
+			author = *maybeActor
 			return nil
 		})
 		if err != nil {
@@ -76,16 +80,15 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 	if err != nil && errors.IsNotFound(err) {
 		// NOTE(marius): fallback to searching for the OAuth2 application by URL
 		iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(clientID))
-		maybeClients, err := repo.Load(iri, filters.SameURL(vocab.IRI(client)), filters.HasType(vocab.ApplicationType))
+		actorCol, err := repo.Load(iri, filters.SameURL(vocab.IRI(client)), filters.HasType(vocab.ApplicationType))
 		if err != nil && !errors.IsNotFound(err) {
 			return nil, err
 		}
-		err = vocab.OnActor(maybeClients, func(act *vocab.Actor) error {
-			clientActorItem = act
+		err = vocab.OnCollectionIntf(actorCol, func(col vocab.CollectionInterface) error {
+			clientActorItem = col.Collection().First()
 			return nil
 		})
 		if err != nil {
-			// NOTE(marius): loaded maybeClients were not vocab.Actor objects
 			return nil, err
 		}
 	}
@@ -114,9 +117,9 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 
 		redirect = res.RedirectUris
 		userData, _ = json.Marshal(res)
-		newClient := GeneratedClientActor(actor, *res)
+		newClient := GeneratedClientActor(author, *res)
 
-		clientActorItem, err = AddActor(repo, newClient, nil, actor)
+		clientActorItem, err = AddActor(repo, newClient, nil, author)
 		if err != nil {
 			return nil, err
 		}
@@ -307,12 +310,10 @@ func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
 	if err != nil {
 		return nil, errUnauthorized
 	}
-	if actors.IsCollection() {
-		_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
-			actors = col.Collection()
-			return nil
-		})
-	}
+	_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
+		actors = col.Collection()
+		return nil
+	})
 
 	var act *account
 	var logger = s.Logger.WithContext(lw.Ctx{
