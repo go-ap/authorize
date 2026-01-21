@@ -137,7 +137,7 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 	id := string(clientActor.ID)
 	if _, err = repo.GetClient(id); err != nil {
 		if errors.IsNotFound(err) {
-			if err = CreateOAuthClient(repo, clientActor, redirect, nil, userData); err != nil {
+			if _, err = CreateOAuthClient(repo, clientActor, redirect, nil, userData); err != nil {
 				return nil, errors.Newf("unable to save OAuth2 client")
 			}
 		} else {

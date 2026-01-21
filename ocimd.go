@@ -90,14 +90,14 @@ func FetchClientMetadata(clientID vocab.IRI) (*ClientMetadata, error) {
 	return &c, nil
 }
 
-func CreateOAuthClient(st FullStorage, clientActor *vocab.Actor, redirect []string, pw, userData []byte) error {
+func CreateOAuthClient(st FullStorage, clientActor *vocab.Actor, redirect []string, pw, userData []byte) (osin.Client, error) {
 	id := string(clientActor.GetID())
 	if id == "" {
-		return errors.Newf("invalid actor saved, id is null")
+		return nil, errors.Newf("invalid actor saved, id is null")
 	}
 
 	if err := AddKeyToItem(st, clientActor, "RSA"); err != nil {
-		return errors.Annotatef(err, "Error saving metadata for application %s", vocab.NameOf(clientActor))
+		return nil, errors.Annotatef(err, "Error saving metadata for application %s", vocab.NameOf(clientActor))
 	}
 
 	d := &osin.DefaultClient{
@@ -108,7 +108,7 @@ func CreateOAuthClient(st FullStorage, clientActor *vocab.Actor, redirect []stri
 	}
 
 	if err := st.CreateClient(d); err != nil {
-		return errors.Annotatef(err, "unable to save OAuth2 client application")
+		return nil, errors.Annotatef(err, "unable to save OAuth2 client application")
 	}
-	return nil
+	return d, nil
 }

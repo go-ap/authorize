@@ -251,7 +251,7 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 		}
 
 		userData, _ := json.Marshal(regReq)
-		if err = CreateOAuthClient(st, clientActor, redirect, pw, userData); err != nil {
+		if d, err = CreateOAuthClient(st, clientActor, redirect, pw, userData); err != nil {
 			s.HandleError(errors.Newf("unable to save OAuth2 client application")).ServeHTTP(w, r)
 			return
 		}
