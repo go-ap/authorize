@@ -608,4 +608,18 @@ type ClientRegistrationRequest struct {
 	// "software_id" SHOULD remain the same for all instances of the
 	// client software.  The "software_id" SHOULD remain the same across
 	SoftwareID uuid.UUID `json:"software_id,omitempty"`
+
+	// SoftwareVersion is a version identifier string for the client software identified by
+	// "software_id".  The value of the "software_version" SHOULD change
+	// on any update to the client software identified by the same
+	// "software_id".  The value of this field is intended to be compared
+	// using string equality matching and no other comparison semantics
+	// are defined by this specification.  The value of this field is
+	// outside the scope of this specification, but it is not intended to
+	// be human readable and is usually opaque to the client and
+	// authorization server.  The definition of what constitutes an
+	// update to client software that would trigger a change to this
+	// value is specific to the software itself and is outside the scope
+	// of this specification.
+	SoftwareVersion string `json:"software_version,omitempty"`
 }
