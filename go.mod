@@ -9,7 +9,7 @@ require (
 	git.sr.ht/~mariusor/storage-all v0.0.0-20260115144059-1818eecf5e6d
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.12.1
-	github.com/go-ap/auth v0.0.0-20260115142916-44886cbbc56c
+	github.com/go-ap/auth v0.0.0-20260121160330-c70f82f1d4bb
 	github.com/go-ap/errors v0.0.0-20251229095444-2702aa2d8569
 	github.com/go-ap/processing v0.0.0-20260115142936-f2dd875a68ff
 	github.com/go-chi/chi/v5 v5.2.4
@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	git.sr.ht/~mariusor/cache v0.0.0-20250616110250-18a60a6f9473 // indirect
+	git.sr.ht/~mariusor/cache v0.0.0-20250616110250-18a60a6f9473
 	git.sr.ht/~mariusor/go-xsd-duration v0.0.0-20220703122237-02e73435a078 // indirect
 	git.sr.ht/~mariusor/ssm v0.0.0-20250920150353-cc21fa885fda // indirect
 	github.com/RoaringBitmap/roaring v1.9.4 // indirect
@@ -39,7 +39,7 @@ require (
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/clipperhouse/displaywidth v0.7.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
-	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.3.1 // indirect
 	github.com/creack/pty v1.1.24 // indirect
 	github.com/dgraph-io/badger/v4 v4.9.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
@@ -101,5 +101,5 @@ require (
 	modernc.org/libc v1.67.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.44.1 // indirect
+	modernc.org/sqlite v1.44.3 // indirect
 )
