@@ -117,7 +117,7 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 
 		redirect = res.RedirectUris
 		userData, _ = json.Marshal(res)
-		newClient := GeneratedClientActor(author, *res)
+		newClient := GeneratedClientActor(author, res.ClientRegistrationRequest)
 
 		clientActorItem, err = AddActor(repo, newClient, nil, author)
 		if err != nil {

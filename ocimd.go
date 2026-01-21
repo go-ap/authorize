@@ -40,14 +40,24 @@ func ValidateOCIMDIdentifier(clientID vocab.IRI) error {
 
 // ValidateClientMetadata
 // https://www.ietf.org/archive/id/draft-ietf-oauth-client-id-metadata-document-00.html#name-client-metadata
-func ValidateClientMetadata(c ClientRegistrationRequest) error {
+func ValidateClientMetadata(c ClientMetadata, clientID string) error {
+	if !strings.EqualFold(c.ClientID, clientID) {
+		return errors.Newf("client_id does not match the URL of the document")
+	}
 	if strings.Contains(c.TokenEndpointAuthMethod, "client_secret_post") {
 		return errors.Newf("client_secret_post is not a valid token_endpoint_auth_method")
 	}
 	return nil
 }
 
-func FetchClientMetadata(clientID vocab.IRI) (*ClientRegistrationRequest, error) {
+type ClientMetadata struct {
+	// ClientRegistrationResponse fields
+	ClientID string `json:"client_id"`
+	IssuedAt int64  `json:"client_id_issued_at"`
+	ClientRegistrationRequest
+}
+
+func FetchClientMetadata(clientID vocab.IRI) (*ClientMetadata, error) {
 	var tr http.RoundTripper = &http.Transport{}
 	if IsDev.Load() {
 		tr = debug.New(debug.WithTransport(tr), debug.WithPath(os.TempDir()))
@@ -69,12 +79,12 @@ func FetchClientMetadata(clientID vocab.IRI) (*ClientRegistrationRequest, error)
 	}
 	defer res.Body.Close()
 
-	c := ClientRegistrationRequest{}
+	c := ClientMetadata{}
 	if err := json.NewDecoder(res.Body).Decode(&c); err != nil {
 		return nil, err
 	}
 
-	if err := ValidateClientMetadata(c); err != nil {
+	if err := ValidateClientMetadata(c, string(clientID)); err != nil {
 		return nil, err
 	}
 	return &c, nil

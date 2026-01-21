@@ -49,13 +49,16 @@ func generateClientID(it vocab.Item, _ vocab.Item, by vocab.Item, uid uuid.UUID)
 	return generateID(it, partOf, by, uid)
 }
 
-func GenerateBasicClientRegistrationRequest(clientID vocab.IRI, redirect []string) *ClientRegistrationRequest {
+func GenerateBasicClientRegistrationRequest(clientID vocab.IRI, redirect []string) *ClientMetadata {
 	u, _ := clientID.URL()
-	basicClientInfo := ClientRegistrationRequest{
-		ClientName:   u.Host,
-		ClientURI:    string(clientID),
-		RedirectUris: redirect,
-		SoftwareID:   uuid.NewRandom(),
+	basicClientInfo := ClientMetadata{
+		ClientID: string(clientID),
+		ClientRegistrationRequest: ClientRegistrationRequest{
+			ClientName:   u.Host,
+			ClientURI:    string(clientID),
+			RedirectUris: redirect,
+			SoftwareID:   uuid.NewRandom(),
+		},
 	}
 	return &basicClientInfo
 }
@@ -219,16 +222,17 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 	var status int
 
 	clientActor = GeneratedClientActor(self, regReq)
+	clientActorID := clientActor.ID
 
 	maybeExists, err := st.Load(clientActor.ID)
 	if err == nil {
 		clientActor, err = vocab.ToActor(maybeExists)
 		if err != nil {
-			s.HandleError(errors.Conflictf("existing item at IRI %s but is not an actor %s", clientActor.ID, maybeExists.GetType())).ServeHTTP(w, r)
+			s.HandleError(errors.Conflictf("existing item at IRI %s but is not an actor %s", clientActorID, maybeExists.GetType())).ServeHTTP(w, r)
 			return
 		}
 
-		d, err = st.GetClient(clientActor.ID.String())
+		d, err = st.GetClient(string(clientActorID))
 		if err != nil {
 			s.HandleError(errors.Newf("unable to load existing OAuth2 client application")).ServeHTTP(w, r)
 			return
