@@ -39,9 +39,9 @@ func generateClientID(it vocab.Item, _ vocab.Item, by vocab.Item, uid uuid.UUID)
 	typ := it.GetType()
 
 	var partOf vocab.IRI
-	if vocab.ActivityTypes.Contains(typ) || vocab.IntransitiveActivityTypes.Contains(typ) {
+	if vocab.ActivityTypes.Match(typ) || vocab.IntransitiveActivityTypes.Match(typ) {
 		partOf = filters.ActivitiesType.IRI(base)
-	} else if vocab.ActorTypes.Contains(typ) || typ == vocab.ActorType {
+	} else if vocab.ActorTypes.Match(typ) || typ == vocab.ActorType {
 		partOf = filters.ActorsType.IRI(base)
 	} else {
 		partOf = filters.ObjectsType.IRI(base)
@@ -276,7 +276,7 @@ func AddKeyToPerson(metaSaver MetadataStorage, typ string) func(act *vocab.Actor
 	//  for now we'll assume that if we're calling this, we want to do it
 	overwriteKeys := true
 	return func(act *vocab.Actor) error {
-		if !vocab.ActorTypes.Contains(act.Type) {
+		if !vocab.ActorTypes.Match(act.Type) {
 			return nil
 		}
 

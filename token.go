@@ -81,7 +81,7 @@ func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item, uid uuid.UUID) (
 	}
 	id := partOf.GetLink().AddPath(uid.String())
 	typ := it.GetType()
-	if vocab.ActivityTypes.Contains(typ) || vocab.IntransitiveActivityTypes.Contains(typ) {
+	if vocab.ActivityTypes.Match(typ) || vocab.IntransitiveActivityTypes.Match(typ) {
 		err := vocab.OnIntransitiveActivity(it, func(a *vocab.IntransitiveActivity) error {
 			if rec := a.Recipients(); rec.Contains(vocab.PublicNS) {
 				return nil
