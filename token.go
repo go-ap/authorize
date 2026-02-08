@@ -229,24 +229,58 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
-	client, err := url.QueryUnescape(r.FormValue(clientIdKey))
-	if err != nil {
-		s.HandleError(err).ServeHTTP(w, r)
-		return
-	}
-	cl, err := repo.GetClient(client)
-	if err != nil {
-		s.HandleError(err).ServeHTTP(w, r)
-		return
+
+	if id := r.FormValue(clientIdKey); id != "" {
+		client, err := url.QueryUnescape(id)
+		if err != nil {
+			s.HandleError(err).ServeHTTP(w, r)
+			return
+		}
+		cl, err := repo.GetClient(client)
+		if err != nil {
+			s.HandleError(err).ServeHTTP(w, r)
+			return
+		}
+
+		a.Config.AllowClientSecretInParams = true
+		if vocab.IRI(client).Contains(app.ID, false) && r.FormValue("client_secret") == "" {
+			// NOTE(marius): client ID and current server are on the same host
+			r.Form.Set("client_secret", cl.GetSecret())
+		}
+	} else {
+		auth, err := osin.CheckBasicAuth(r)
+		if err != nil {
+			s.HandleError(err).ServeHTTP(w, r)
+			return
+		}
+
+		// check for existing application actor
+		clientActor, _ := LoadClientActorByID(repo, app, vocab.IRI(auth.Username))
+		if vocab.IsNil(clientActor) {
+			// NOTE(marius): if we were unable to find any local client matching ClientID,
+			// we attempt a OAuth Client ID Metadata Document based client registration mechanism.
+			res, _ := FetchClientMetadata(vocab.IRI(auth.Username))
+			if res != nil {
+				baseActor := &vocab.Actor{Type: vocab.ApplicationType}
+				if clientID, err := generateClientID(baseActor, vocab.Outbox.IRI(app), app, res.SoftwareID); err == nil {
+					clientActor, err = LoadClientActorByID(repo, app, clientID)
+					if err != nil && errors.IsNotFound(err) {
+						s.HandleError(err).ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+		}
+
+		cl, err := repo.GetClient(string(clientActor.ID))
+		if err != nil {
+			s.HandleError(err).ServeHTTP(w, r)
+			return
+		}
+		r.SetBasicAuth(url.QueryEscape(cl.GetId()), cl.GetSecret())
 	}
 
 	resp := a.NewResponse()
-	a.Config.AllowClientSecretInParams = true
-	if vocab.IRI(client).Contains(app.ID, false) && r.FormValue("client_secret") == "" {
-		// NOTE(marius): client ID and current server are on the same host
-		r.Form.Set("client_secret", cl.GetSecret())
-	}
-
 	if ar := a.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
 		var actorCtx lw.Ctx

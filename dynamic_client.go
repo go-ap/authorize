@@ -36,16 +36,20 @@ type MetadataStorage interface {
 // its creator "by"
 func generateClientID(it vocab.Item, _ vocab.Item, by vocab.Item, uid uuid.UUID) (vocab.ID, error) {
 	base := vocab.IRI(iriBaseURL(by.GetLink()))
-	typ := it.GetType()
 
-	var partOf vocab.IRI
-	if vocab.ActivityTypes.Match(typ) || vocab.IntransitiveActivityTypes.Match(typ) {
-		partOf = filters.ActivitiesType.IRI(base)
-	} else if vocab.ActorTypes.Match(typ) || typ == vocab.ActorType {
-		partOf = filters.ActorsType.IRI(base)
-	} else {
-		partOf = filters.ObjectsType.IRI(base)
+	partOf := filters.ObjectsType.IRI(base)
+	if !vocab.IsNil(it) {
+		typ := it.GetType()
+
+		if vocab.ActivityTypes.Match(typ) || vocab.IntransitiveActivityTypes.Match(typ) {
+			partOf = filters.ActivitiesType.IRI(base)
+		} else if append(vocab.ActorTypes, vocab.ActorType).Match(typ) {
+			partOf = filters.ActorsType.IRI(base)
+		} else {
+			partOf = filters.ObjectsType.IRI(base)
+		}
 	}
+
 	return generateID(it, partOf, by, uid)
 }
 
@@ -63,11 +67,14 @@ func GenerateBasicClientRegistrationRequest(clientID vocab.IRI, redirect []strin
 	return &basicClientInfo
 }
 
-func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationRequest) *vocab.Actor {
+func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationRequest, clientID vocab.IRI) *vocab.Actor {
 	now := time.Now().Truncate(time.Second).UTC()
 
 	urls := make(vocab.ItemCollection, 0, 3)
 	_ = urls.Append(vocab.IRI(clientRequest.ClientURI))
+	if !clientID.Equal(vocab.EmptyIRI) {
+		_ = urls.Append(clientID)
+	}
 	for _, redir := range clientRequest.RedirectUris {
 		_ = urls.Append(vocab.IRI(redir))
 	}
@@ -221,7 +228,7 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 	var d osin.Client
 	var status int
 
-	clientActor = GeneratedClientActor(self, regReq)
+	clientActor = GeneratedClientActor(self, regReq, "")
 	clientActorID := clientActor.ID
 
 	maybeExists, err := st.Load(clientActor.ID)

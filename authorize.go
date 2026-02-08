@@ -32,6 +32,34 @@ func (s *Service) authFromRequest(req *http.Request) (*auth.Server, error) {
 	return s.auth(app, db)
 }
 
+func LoadClientActorByID(repo FullStorage, app vocab.Actor, clientID vocab.IRI) (*vocab.Actor, error) {
+	// check for existing application actor
+	clientActorItem, err := repo.Load(clientID)
+	if err != nil && errors.IsNotFound(err) {
+		// NOTE(marius): fallback to searching for the OAuth2 application by URL
+		actorCol, err := repo.Load(vocab.Outbox.IRI(app), filters.HasType(vocab.CreateType), filters.Object(filters.SameURL(clientID), filters.HasType(vocab.ApplicationType)))
+		if err != nil && !errors.IsNotFound(err) {
+			return nil, err
+		}
+		err = vocab.OnCollectionIntf(actorCol, func(col vocab.CollectionInterface) error {
+			for _, it := range col.Collection() {
+				_ = vocab.OnActivity(it, func(act *vocab.Activity) error {
+					clientActorItem = act.Object
+					return nil
+				})
+				if !vocab.IsNil(clientActorItem) {
+					break
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return vocab.ToActor(clientActorItem)
+}
+
 func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) {
 	// NOTE(marius): we should try to use Evan's diagram:
 	// https://github.com/swicg/activitypub-api/issues/1#issuecomment-3708524521
@@ -76,18 +104,8 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 	}
 
 	// check for existing application actor
-	clientActorItem, err := repo.Load(clientID)
+	clientActor, err := LoadClientActorByID(repo, app, clientID)
 	if err != nil && errors.IsNotFound(err) {
-		// NOTE(marius): fallback to searching for the OAuth2 application by URL
-		iri := SearchActorsIRI(baseIRI, ByType(vocab.ApplicationType), ByURL(clientID))
-		actorCol, err := repo.Load(iri, filters.SameURL(vocab.IRI(client)), filters.HasType(vocab.ApplicationType))
-		if err != nil && !errors.IsNotFound(err) {
-			return nil, err
-		}
-		err = vocab.OnCollectionIntf(actorCol, func(col vocab.CollectionInterface) error {
-			clientActorItem = col.Collection().First()
-			return nil
-		})
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +122,7 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 		redirect = append(redirect, unescapedUri)
 	}
 
-	if vocab.IsNil(clientActorItem) {
+	if vocab.IsNil(clientActor) {
 		// NOTE(marius): if we were unable to find any local client matching ClientID,
 		// we attempt a OAuth Client ID Metadata Document based client registration mechanism.
 		res, err := FetchClientMetadata(clientID)
@@ -117,20 +135,15 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 
 		redirect = res.RedirectUris
 		userData, _ = json.Marshal(res)
-		newClient := GeneratedClientActor(author, res.ClientRegistrationRequest)
+		newClient := GeneratedClientActor(author, res.ClientRegistrationRequest, clientID)
 
-		clientActorItem, err = AddActor(repo, newClient, nil, author)
+		clientActor, err = AddActor(repo, newClient, nil, author)
 		if err != nil {
 			return nil, err
 		}
-		if vocab.IsNil(clientActorItem) {
+		if vocab.IsNil(clientActor) {
 			return nil, errors.Newf("unable to generate OAuth2 client")
 		}
-	}
-
-	clientActor, ok := clientActorItem.(*vocab.Actor)
-	if !ok {
-		return nil, errors.Newf("OAuth2 client is not a valid ActivityPub actor")
 	}
 
 	// must have a valid client
