@@ -206,15 +206,18 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		s.HandleError(errors.Newf("invalid storage to load actor")).ServeHTTP(w, r)
 		return
 	}
-	var actor vocab.Item = &auth.AnonymousActor
-	if s.IsValidRequest(r) {
-		if actor, err = s.ValidateOrCreateClient(r); err != nil {
+
+	if IsValidRequest(r) {
+		clientActor, err := s.ValidateOrCreateClient(r)
+		if err != nil {
 			resp.SetError(osin.E_INVALID_REQUEST, err.Error())
 			s.redirectOrOutput(resp, w, r)
 			return
 		}
+		s.Logger.WithContext(lw.Ctx{"client": clientActor.ID}).Debugf("valid client")
 	}
 
+	var actor vocab.Item = &auth.AnonymousActor
 	if c := chi.URLParam(r, "id"); c != "" {
 		if actorUrl, err := url.ParseRequestURI(reqUrl(r)); err == nil {
 			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]

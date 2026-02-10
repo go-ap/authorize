@@ -158,7 +158,7 @@ func (s *Service) auth(app vocab.Actor, db FullStorage) (*auth.Server, error) {
 	)
 }
 
-func (s *Service) IsValidRequest(r *http.Request) bool {
+func IsValidRequest(r *http.Request) bool {
 	clientID, err := url.QueryUnescape(r.FormValue(clientIdKey))
 	if err != nil {
 		return false
