@@ -271,6 +271,10 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		if vocab.IsNil(clientActor) {
+			s.HandleError(errors.NotFoundf("unable to find client actor")).ServeHTTP(w, r)
+			return
+		}
 
 		cl, err := repo.GetClient(string(clientActor.ID))
 		if err != nil {
@@ -304,6 +308,8 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 					"actor":  actorSearchIRI,
 				}
 			}
+		case osin.CLIENT_CREDENTIALS:
+			actorSearchIRI = vocab.IRI(ar.Client.GetId())
 		case osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
 			if actorSearchIRI, err = iriFromUserData(ar.UserData); err != nil {
 				s.Logger.Errorf("%+s", err)
@@ -315,13 +321,16 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				"code":  mask.S(ar.Code).String(),
 			}
 		}
+
 		actor, err := repo.Load(actorSearchIRI)
 		if err != nil {
 			s.Logger.Errorf("%+s", err)
 			s.HandleError(errNotFound).ServeHTTP(w, r)
 			return
 		}
-		if ar.Type == osin.PASSWORD {
+
+		switch ar.Type {
+		case osin.PASSWORD:
 			if actor.IsCollection() {
 				err = vocab.OnCollectionIntf(actor, func(col vocab.CollectionInterface) error {
 					// NOTE(marius): This is a stupid way of doing pw authentication, as it will produce collisions
@@ -348,8 +357,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			}
 			ar.Authorized = acc.IsLogged()
 			ar.UserData = acc.actor.GetLink()
-		}
-		if ar.Type == osin.AUTHORIZATION_CODE || ar.Type == osin.REFRESH_TOKEN {
+		case osin.CLIENT_CREDENTIALS, osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
 			_ = vocab.OnActor(actor, func(p *vocab.Actor) error {
 				acc = new(account)
 				acc.FromActor(p)
