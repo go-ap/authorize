@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"git.sr.ht/~mariusor/lw"
@@ -258,16 +259,25 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			var it vocab.Item
 			// check for existing application actor
 			for _, baseIRI := range baseURL(r) {
-				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(ar.Client.GetId())
-				if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
-					clientIRI = vocab.IRI(ar.Client.GetId())
-				}
-
-				it, _ = loader.Load(clientIRI)
+				// NOTE(marius): try to load based on client.ID as an IRI:
+				it, _ = loader.Load(vocab.IRI(ar.Client.GetId()))
 				if !vocab.IsNil(it) {
 					m.client = it
 					m.state = ar.State
 					break
+				} else {
+					// NOTE(marius): try to load based on appending the client.ID to the actors collection:
+					clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(filepath.Base(ar.Client.GetId()))
+					if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
+						clientIRI = vocab.IRI(ar.Client.GetId())
+					}
+
+					it, _ = loader.Load(clientIRI)
+					if !vocab.IsNil(it) {
+						m.client = it
+						m.state = ar.State
+						break
+					}
 				}
 			}
 			if vocab.IsNil(it) {
