@@ -271,7 +271,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if vocab.IsNil(it) {
-				resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %+s", err))
+				resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %v", ar.Client))
 				s.redirectOrOutput(resp, w, r)
 				return
 			}
