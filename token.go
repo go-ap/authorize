@@ -118,12 +118,8 @@ func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item, uid uuid.UUID) (
 }
 
 const (
-	meKey           = "me"
-	redirectUriKey  = "redirect_uri"
-	clientIdKey     = "client_id"
-	responseTypeKey = "response_type"
-
-	ID osin.AuthorizeRequestType = "id"
+	redirectUriKey = "redirect_uri"
+	clientIdKey    = "client_id"
 )
 
 func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage, error) {
@@ -369,6 +365,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		a.FinishAccessRequest(resp, r, ar)
 		authCtx["authorized"] = ar.Authorized
 		authCtx["code"] = mask.S(ar.Code).String()
+		authCtx["code_verifier"] = ar.CodeVerifier
 		s.Logger.WithContext(actorCtx, authCtx).Infof("Token")
 	}
 

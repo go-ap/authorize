@@ -78,32 +78,8 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 	if err != nil {
 		return nil, err
 	}
-	baseIRI := app.GetLink()
 
 	author := app
-	// check for existing user actor
-	// load the 'me' value of the actor that wants to authenticate
-	me, _ := url.QueryUnescape(r.FormValue(meKey))
-	if me != "" {
-		// NOTE(marius): this is an indie auth request
-		iri := SearchActorsIRI(baseIRI, ByType(vocab.PersonType), ByURL(vocab.IRI(me)))
-		actorCol, err := repo.Load(iri)
-		if err != nil {
-			return nil, err
-		}
-		err = vocab.OnCollectionIntf(actorCol, func(col vocab.CollectionInterface) error {
-			maybeActor, err := vocab.ToActor(col.Collection().First())
-			if err != nil {
-				return err
-			}
-			author = *maybeActor
-			return nil
-		})
-		if err != nil {
-			return nil, errors.NotFoundf("unknown actor")
-		}
-	}
-
 	// check for existing application actor
 	clientActor, err := LoadClientActorByID(repo, app, clientID)
 	if err != nil && errors.IsNotFound(err) {
@@ -315,6 +291,10 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	logFn := s.Logger.WithContext(ltx).Warnf
 	ltx["authorized"] = ar.Authorized
 	ltx["state"] = ar.State
+	if ar.CodeChallengeMethod != "" {
+		ltx["code_challenge_method"] = ar.CodeChallengeMethod
+		ltx["code_challenge"] = ar.CodeChallenge
+	}
 	if ar.Authorized {
 		logFn = s.Logger.WithContext(ltx).Infof
 	}
