@@ -11,6 +11,7 @@ import (
 
 	"git.sr.ht/~mariusor/lw"
 	"git.sr.ht/~mariusor/mask"
+	ct "github.com/elnormous/contenttype"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/authorize/internal/assets"
@@ -518,6 +519,11 @@ func redirectUri(r *http.Request) func() string {
 	}
 }
 
+var (
+	htmlContentType = ct.NewMediaType("text/hml")
+	jsonContentType = ct.NewMediaType("application/json")
+)
+
 func (s *Service) HandleError(e error) http.HandlerFunc {
 	s.Logger.Errorf("%s", e)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -531,18 +537,30 @@ func (s *Service) HandleError(e error) http.HandlerFunc {
 		if status == 0 {
 			status = http.StatusInternalServerError
 		}
-		err := errRenderer.HTML(w, status, "error", e, renderOptions)
-		if err == nil {
-			_, _ = io.Copy(w, &wrt)
-			return
+
+		acceptableMediaTypes := []ct.MediaType{htmlContentType, jsonContentType}
+		accepted, _, _ := ct.GetAcceptableMediaType(r, acceptableMediaTypes)
+
+		switch {
+		case accepted.Matches(jsonContentType):
+			errs := errors.HttpErrors(e)
+			if err := json.NewEncoder(w).Encode(errs); err != nil {
+				s.Logger.WithContext(lw.Ctx{"template": "error", "model": fmt.Sprintf("%T", e)}).Errorf("%+s", err)
+			}
+		case accepted.Matches(htmlContentType):
+			err := errRenderer.HTML(w, status, "error", e, renderOptions)
+			if err == nil {
+				_, _ = io.Copy(w, &wrt)
+				return
+			}
+			err = errors.Annotatef(err, "failed to render template")
+			s.Logger.WithContext(lw.Ctx{"template": "error", "model": fmt.Sprintf("%T", e)}).Errorf("%+s", err)
+			status = errors.HttpStatus(err)
+			if status == 0 {
+				status = http.StatusInternalServerError
+			}
+			_ = errRenderer.HTML(w, status, "error", err, renderOptions)
 		}
-		err = errors.Annotatef(err, "failed to render template")
-		s.Logger.WithContext(lw.Ctx{"template": "error", "model": fmt.Sprintf("%T", e)}).Errorf("%+s", err)
-		status = errors.HttpStatus(err)
-		if status == 0 {
-			status = http.StatusInternalServerError
-		}
-		_ = errRenderer.HTML(w, status, "error", err, renderOptions)
 	}
 }
 
