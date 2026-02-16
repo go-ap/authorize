@@ -191,6 +191,8 @@ func (l login) Client() vocab.Item {
 	return l.client
 }
 
+var scopeAnonymousUserCreate = "anonUserCreate"
+
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.authFromRequest(r)
 	if err != nil {
@@ -241,42 +243,53 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	ltx["client"] = ar.Client.GetId()
 	ltx["state"] = ar.State
 	if r.Method == http.MethodGet {
-		// this is basically the login page, with client being set
-		m := login{title: "Login"}
-		m.account = actor
+		if ar.Scope == scopeAnonymousUserCreate {
+			// FIXME(marius): this is used by brutalinks to authorize freshly created actors in order to
+			//  be able to change their passwords.
+			//  It can probably be removed because the brutalinks client should be able to create actors using
+			//  regular ActivityPub methods. The only thing remaining would be to set the password.
+			ar.Authorized = true
+			overrideRedir = true
+			iri := ar.HttpRequest.URL.Query().Get("actor")
+			ar.UserData = iri
+		} else {
+			// this is basically the login page, with client being set
+			m := login{title: "Login"}
+			m.account = actor
 
-		var it vocab.Item
-		// check for existing application actor
-		for _, baseIRI := range baseURL(r) {
-			// NOTE(marius): try to load based on client.ID as an IRI:
-			it, _ = loader.Load(vocab.IRI(ar.Client.GetId()))
-			if !vocab.IsNil(it) {
-				m.client = it
-				m.state = ar.State
-				break
-			} else {
-				// NOTE(marius): try to load based on appending the client.ID to the actors collection:
-				clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(filepath.Base(ar.Client.GetId()))
-				if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
-					clientIRI = vocab.IRI(ar.Client.GetId())
-				}
-
-				it, _ = loader.Load(clientIRI)
+			var it vocab.Item
+			// check for existing application actor
+			for _, baseIRI := range baseURL(r) {
+				// NOTE(marius): try to load based on client.ID as an IRI:
+				it, _ = loader.Load(vocab.IRI(ar.Client.GetId()))
 				if !vocab.IsNil(it) {
 					m.client = it
 					m.state = ar.State
 					break
+				} else {
+					// NOTE(marius): try to load based on appending the client.ID to the actors collection:
+					clientIRI := filters.ActorsType.IRI(vocab.IRI(baseIRI)).AddPath(filepath.Base(ar.Client.GetId()))
+					if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
+						clientIRI = vocab.IRI(ar.Client.GetId())
+					}
+
+					it, _ = loader.Load(clientIRI)
+					if !vocab.IsNil(it) {
+						m.client = it
+						m.state = ar.State
+						break
+					}
 				}
 			}
-		}
-		if vocab.IsNil(it) {
-			resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %s", ar.Client.GetId()))
-			s.redirectOrOutput(resp, w, r)
+			if vocab.IsNil(it) {
+				resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %s", ar.Client.GetId()))
+				s.redirectOrOutput(resp, w, r)
+				return
+			}
+
+			s.renderTemplate(r, w, "login", m)
 			return
 		}
-
-		s.renderTemplate(r, w, "login", m)
-		return
 	} else {
 		handle := r.PostFormValue("handle")
 		if vocab.IsNil(actor) {
