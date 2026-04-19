@@ -73,7 +73,7 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 	}
 	baseIRI := app.GetLink()
 
-	if id := chi.URLParam(r, "id"); id != "" {
+	if id := chi.URLParam(r, string(ID)); id != "" {
 		act, err := s.loadAccountByID(filters.ActorsType.IRI(baseIRI).AddPath(id))
 		if err != nil {
 			s.HandleError(err).ServeHTTP(w, r)

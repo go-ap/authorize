@@ -146,13 +146,44 @@ func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage
 	return app, nil, errStorageNotFound
 }
 
-func (s *Service) auth(app vocab.Actor, db FullStorage) (*auth.Server, error) {
-	return auth.New(
-		auth.WithURL(app.GetLink().String()),
-		auth.WithStorage(db),
-		auth.WithClient(s.Client),
-		auth.WithLogger(s.Logger.WithContext(lw.Ctx{"log": "osin"})),
-	)
+// ID is the type of authorization that IndieAuth is using
+const ID = osin.AuthorizeRequestType("id")
+
+var (
+	DefaultAuthorizeTypes = osin.AllowedAuthorizeType{osin.CODE, osin.TOKEN, ID}
+	DefaultAccessTypes    = osin.AllowedAccessType{osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN, osin.PASSWORD, osin.CLIENT_CREDENTIALS}
+
+	DefaultConfig = osin.ServerConfig{
+		AuthorizationExpiration:     86400,
+		AccessExpiration:            2678400,
+		TokenType:                   "Bearer",
+		AllowedAuthorizeTypes:       DefaultAuthorizeTypes,
+		AllowedAccessTypes:          DefaultAccessTypes,
+		ErrorStatusCode:             http.StatusForbidden,
+		AllowClientSecretInParams:   false,
+		AllowGetAccessRequest:       false,
+		RetainTokenAfterRefresh:     true,
+		RedirectUriSeparator:        "\n",
+		RequirePKCEForPublicClients: true,
+	}
+)
+
+// logger is our internal implementation of an OSIN compatible logger.
+type logger struct {
+	lw.Logger
+}
+
+func (l logger) Printf(format string, v ...any) {
+	if l.Logger == nil {
+		return
+	}
+	l.Logger.Infof(format, v...)
+}
+
+func (s *Service) auth(db osin.Storage) *osin.Server {
+	o := osin.NewServer(&DefaultConfig, db)
+	o.Logger = logger{Logger: s.Logger.WithContext(lw.Ctx{"log": "auth"})}
+	return o
 }
 
 func IsValidRequest(r *http.Request) bool {
@@ -221,11 +252,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	baseIRI := app.GetLink()
 
 	acc := &AnonymousAcct
-	a, err := s.auth(app, repo)
-	if err != nil {
-		s.HandleError(err).ServeHTTP(w, r)
-		return
-	}
+	osrv := s.auth(repo)
 
 	if id := r.FormValue(clientIdKey); id != "" {
 		client, err := url.QueryUnescape(id)
@@ -239,24 +266,24 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		a.Config.AllowClientSecretInParams = true
+		osrv.Config.AllowClientSecretInParams = true
 		if vocab.IRI(client).Contains(app.ID, false) && r.FormValue("client_secret") == "" {
 			// NOTE(marius): client ID and current server are on the same host
 			r.Form.Set("client_secret", cl.GetSecret())
 		}
 	} else {
-		auth, err := osin.CheckBasicAuth(r)
+		basicAuth, err := osin.CheckBasicAuth(r)
 		if err != nil {
 			s.HandleError(err).ServeHTTP(w, r)
 			return
 		}
 
 		// check for existing application actor
-		clientActor, _ := LoadClientActorByID(repo, app, vocab.IRI(auth.Username))
+		clientActor, _ := LoadClientActorByID(repo, app, vocab.IRI(basicAuth.Username))
 		if vocab.IsNil(clientActor) {
 			// NOTE(marius): if we were unable to find any local client matching ClientID,
 			// we attempt a OAuth Client ID Metadata Document based client registration mechanism.
-			res, _ := FetchClientMetadata(vocab.IRI(auth.Username))
+			res, _ := FetchClientMetadata(vocab.IRI(basicAuth.Username))
 			if res != nil {
 				baseActor := &vocab.Actor{Type: vocab.ApplicationType}
 				if clientID, err := generateClientID(baseActor, vocab.Outbox.IRI(app), app, res.SoftwareID); err == nil {
@@ -281,8 +308,8 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		r.SetBasicAuth(url.QueryEscape(cl.GetId()), cl.GetSecret())
 	}
 
-	resp := a.NewResponse()
-	if ar := a.HandleAccessRequest(resp, r); ar != nil {
+	resp := osrv.NewResponse()
+	if ar := osrv.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
 		var actorCtx lw.Ctx
 		authCtx := lw.Ctx{
@@ -363,7 +390,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				return nil
 			})
 		}
-		a.FinishAccessRequest(resp, r, ar)
+		osrv.FinishAccessRequest(resp, r, ar)
 		authCtx["authorized"] = ar.Authorized
 		authCtx["code"] = mask.S(ar.Code).String()
 		authCtx["code_verifier"] = ar.CodeVerifier

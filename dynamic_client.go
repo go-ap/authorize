@@ -278,6 +278,11 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 	s.Logger.Debugf("%s %s%s %d %s", r.Method, r.Host, r.RequestURI, http.StatusOK, http.StatusText(http.StatusOK))
 }
 
+type Metadata struct {
+	Pw         []byte `jsonld:"pw,omitempty"`
+	PrivateKey []byte `jsonld:"key,omitempty"`
+}
+
 func AddKeyToPerson(metaSaver MetadataStorage, typ string) func(act *vocab.Actor) error {
 	// TODO(marius): add a way to pass if we should overwrite the keys
 	//  for now we'll assume that if we're calling this, we want to do it
@@ -287,7 +292,7 @@ func AddKeyToPerson(metaSaver MetadataStorage, typ string) func(act *vocab.Actor
 			return nil
 		}
 
-		m := new(auth.Metadata)
+		m := new(Metadata)
 		_ = metaSaver.LoadMetadata(act.ID, m)
 		var pubB, prvB pem.Block
 		if m.PrivateKey == nil || overwriteKeys {

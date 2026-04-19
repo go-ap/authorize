@@ -21,8 +21,8 @@ import (
 	"github.com/openshift/osin"
 )
 
-func (s *Service) authFromRequest(req *http.Request) (*auth.Server, error) {
-	app, db, err := s.findMatchingStorage(baseURL(req)...)
+func (s *Service) authFromRequest(req *http.Request) (*osin.Server, error) {
+	_, db, err := s.findMatchingStorage(baseURL(req)...)
 	if err != nil {
 		return nil, errors.NewNotFound(err, "resource not found %s", req.Host)
 	}
@@ -30,7 +30,7 @@ func (s *Service) authFromRequest(req *http.Request) (*auth.Server, error) {
 		return nil, errors.NotFoundf("resource not found %s", req.Host)
 	}
 
-	return s.auth(app, db)
+	return s.auth(db), nil
 }
 
 func LoadClientActorByID(repo FullStorage, app vocab.Actor, clientID vocab.IRI) (*vocab.Actor, error) {
@@ -195,7 +195,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var actor vocab.Item = &auth.AnonymousActor
-	if c := chi.URLParam(r, "id"); c != "" {
+	if c := chi.URLParam(r, string(ID)); c != "" {
 		if actorUrl, err := url.ParseRequestURI(reqUrl(r)); err == nil {
 			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]
 			actorUrl.RawQuery = ""
