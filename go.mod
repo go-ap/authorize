@@ -11,9 +11,9 @@ require (
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.15.0
 	github.com/elnormous/contenttype v1.0.4
-	github.com/go-ap/auth v0.0.0-20260419084414-65d951f3f6d0
+	github.com/go-ap/auth v0.0.0-20260429125111-8fdce5cc55e7
 	github.com/go-ap/errors v0.0.0-20260208110149-e1b309365966
-	github.com/go-ap/processing v0.0.0-20260417143241-6f16acf4256b
+	github.com/go-ap/processing v0.0.0-20260429125245-992b8f62f381
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 )
@@ -32,7 +32,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/keygen v0.5.4 // indirect
 	github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260416161146-9c68a866306c // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260428153724-66037269d7be // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/conpty v0.2.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
@@ -40,15 +40,15 @@ require (
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
-	github.com/common-fate/httpsig v0.2.1 // indirect
 	github.com/creack/pty v1.1.24 // indirect
+	github.com/dadrus/httpsig v0.0.0-20260320084101-37048551fc59 // indirect
 	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/dunglas/httpsfv v1.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ap/activitypub v0.0.0-20260416122353-fb80985e153a
 	github.com/go-ap/cache v0.0.0-20260416122450-ff51ff8e9ff6 // indirect
-	github.com/go-ap/client v0.0.0-20260417142609-98e312cb87a2
+	github.com/go-ap/client v0.0.0-20260429115030-3ff80ccbeebb
 	github.com/go-ap/filters v0.0.0-20260416122840-724cb3c8974c
 	github.com/go-ap/jsonld v0.0.0-20251216162253-e38fa664ea77 // indirect
 	github.com/go-ap/storage-badger v0.0.0-20260417105711-8ae4f1449d1f // indirect
@@ -73,9 +73,9 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mariusor/render v1.5.1-0.20250901122421-8ac127627c3f
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
-	github.com/mattn/go-sqlite3 v1.14.42 // indirect
+	github.com/mattn/go-sqlite3 v1.14.44 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	github.com/rs/zerolog v1.35.0 // indirect
+	github.com/rs/zerolog v1.35.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
@@ -103,9 +103,9 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
-	modernc.org/libc v1.72.0 // indirect
+	modernc.org/libc v1.72.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.49.1 // indirect
+	modernc.org/sqlite v1.50.0 // indirect
 	quamina.net/go/quamina/v2 v2.0.2 // indirect
 )

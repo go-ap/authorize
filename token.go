@@ -71,7 +71,7 @@ func (a *account) FromActor(p *vocab.Actor) {
 
 type Service struct {
 	Stores []FullStorage
-	Client auth.Client
+	Client auth.ActivityPubClient
 	Logger lw.Logger
 }
 
