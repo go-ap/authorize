@@ -11,9 +11,9 @@ require (
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.15.0
 	github.com/elnormous/contenttype v1.0.4
-	github.com/go-ap/auth v0.0.0-20260429125111-8fdce5cc55e7
+	github.com/go-ap/auth v0.0.0-20260430140534-2cdb50d065ab
 	github.com/go-ap/errors v0.0.0-20260208110149-e1b309365966
-	github.com/go-ap/processing v0.0.0-20260429125245-992b8f62f381
+	github.com/go-ap/processing v0.0.0-20260430155833-9c12ea95f06e
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 )
@@ -48,7 +48,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ap/activitypub v0.0.0-20260416122353-fb80985e153a
 	github.com/go-ap/cache v0.0.0-20260416122450-ff51ff8e9ff6 // indirect
-	github.com/go-ap/client v0.0.0-20260429115030-3ff80ccbeebb
+	github.com/go-ap/client v0.0.0-20260430134201-cafcc068e747
 	github.com/go-ap/filters v0.0.0-20260416122840-724cb3c8974c
 	github.com/go-ap/jsonld v0.0.0-20251216162253-e38fa664ea77 // indirect
 	github.com/go-ap/storage-badger v0.0.0-20260417105711-8ae4f1449d1f // indirect
