@@ -11,7 +11,7 @@ require (
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.15.0
 	github.com/elnormous/contenttype v1.0.4
-	github.com/go-ap/auth v0.0.0-20260430140534-2cdb50d065ab
+	github.com/go-ap/auth v0.0.0-20260430195821-093e01ab1966
 	github.com/go-ap/errors v0.0.0-20260208110149-e1b309365966
 	github.com/go-ap/processing v0.0.0-20260430155833-9c12ea95f06e
 	github.com/go-chi/chi/v5 v5.2.5
@@ -68,7 +68,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jdkato/prose v1.2.1 // indirect
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/leporo/sqlf v1.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mariusor/render v1.5.1-0.20250901122421-8ac127627c3f
