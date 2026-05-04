@@ -55,7 +55,6 @@ type Storage interface {
 	Load(vocab.IRI, ...filters.Check) (vocab.Item, error)
 	Save(vocab.Item) (vocab.Item, error)
 	Delete(vocab.Item) error
-	Create(vocab.CollectionInterface) (vocab.CollectionInterface, error)
 	AddTo(vocab.IRI, ...vocab.Item) error
 	RemoveFrom(vocab.IRI, ...vocab.Item) error
 }
