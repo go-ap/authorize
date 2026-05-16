@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"git.sr.ht/~mariusor/storage-all"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/errors"
@@ -361,7 +362,7 @@ func publicKeyFrom(prvBytes []byte) pem.Block {
 	return pem.Block{Type: "PUBLIC KEY", Bytes: pubEnc}
 }
 
-func AddKeyToItem(st FullStorage, it vocab.Item, typ string) error {
+func AddKeyToItem(st storage.FullStorage, it vocab.Item, typ string) error {
 	if metaSaver, ok := st.(MetadataStorage); ok {
 		if err := vocab.OnActor(it, AddKeyToPerson(metaSaver, typ)); err != nil {
 			return errors.Annotatef(err, "failed to process actor: %s", it.GetID())
@@ -373,7 +374,7 @@ func AddKeyToItem(st FullStorage, it vocab.Item, typ string) error {
 	return nil
 }
 
-func AddActor(st FullStorage, p *vocab.Actor, pw []byte, author vocab.Actor) (*vocab.Actor, error) {
+func AddActor(st storage.FullStorage, p *vocab.Actor, pw []byte, author vocab.Actor) (*vocab.Actor, error) {
 	if st == nil {
 		return nil, errors.Errorf("invalid storage backend")
 	}

@@ -11,12 +11,12 @@ import (
 
 	"git.sr.ht/~mariusor/lw"
 	"git.sr.ht/~mariusor/mask"
+	"git.sr.ht/~mariusor/storage-all"
 	ct "github.com/elnormous/contenttype"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/auth"
 	"github.com/go-ap/authorize/internal/assets"
 	"github.com/go-ap/errors"
-	"github.com/go-ap/filters"
 	"github.com/mariusor/render"
 	"github.com/openshift/osin"
 	"github.com/pborman/uuid"
@@ -33,32 +33,6 @@ type account struct {
 	actor    *vocab.Actor
 }
 
-type FullStorage interface {
-	Open() error
-	ClientSaver
-	ClientLister
-	Storage
-	PasswordChanger
-	osin.Storage
-}
-
-type ClientSaver interface {
-	// CreateClient stores the client in the database and returns an error, if something went wrong.
-	CreateClient(c osin.Client) error
-}
-
-type ClientLister interface {
-	GetClient(id string) (osin.Client, error)
-}
-
-type Storage interface {
-	Load(vocab.IRI, ...filters.Check) (vocab.Item, error)
-	Save(vocab.Item) (vocab.Item, error)
-	Delete(vocab.Item) error
-	AddTo(vocab.IRI, ...vocab.Item) error
-	RemoveFrom(vocab.IRI, ...vocab.Item) error
-}
-
 func (a account) IsLogged() bool {
 	return a.actor != nil && a.actor.PreferredUsername.First().String() == a.username
 }
@@ -69,7 +43,7 @@ func (a *account) FromActor(p *vocab.Actor) {
 }
 
 type Service struct {
-	Stores []FullStorage
+	Stores []storage.FullStorage
 	Client auth.ActivityPubClient
 	Logger lw.Logger
 }
@@ -122,7 +96,7 @@ const (
 	clientIdKey    = "client_id"
 )
 
-func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, FullStorage, error) {
+func (s *Service) findMatchingStorage(hosts ...string) (vocab.Actor, storage.FullStorage, error) {
 	var app vocab.Actor
 	for _, db := range s.Stores {
 		for _, host := range hosts {

@@ -33,7 +33,7 @@ func (s *Service) authFromRequest(req *http.Request) (*osin.Server, error) {
 	return s.auth(db), nil
 }
 
-func LoadClientActorByID(repo FullStorage, app vocab.Actor, clientID vocab.IRI) (*vocab.Actor, error) {
+func LoadClientActorByID(repo storage.FullStorage, app vocab.Actor, clientID vocab.IRI) (*vocab.Actor, error) {
 	// check for existing application actor
 	clientActorItem, err := repo.Load(clientID)
 	if err != nil && errors.IsNotFound(err) {

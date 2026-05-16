@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"git.sr.ht/~mariusor/storage-all"
 	vocab "github.com/go-ap/activitypub"
 	"github.com/go-ap/client/debug"
 	"github.com/go-ap/errors"
@@ -90,7 +91,7 @@ func FetchClientMetadata(clientID vocab.IRI) (*ClientMetadata, error) {
 	return &c, nil
 }
 
-func CreateOAuthClient(st FullStorage, clientActor *vocab.Actor, redirect []string, pw, userData []byte) (osin.Client, error) {
+func CreateOAuthClient(st storage.FullStorage, clientActor *vocab.Actor, redirect []string, pw, userData []byte) (osin.Client, error) {
 	id := string(clientActor.GetID())
 	if id == "" {
 		return nil, errors.Newf("invalid actor saved, id is null")
@@ -107,7 +108,7 @@ func CreateOAuthClient(st FullStorage, clientActor *vocab.Actor, redirect []stri
 		UserData:    userData,
 	}
 
-	if err := st.CreateClient(d); err != nil {
+	if err := st.SaveClient(d); err != nil {
 		return nil, errors.Annotatef(err, "unable to save OAuth2 client application")
 	}
 	return d, nil

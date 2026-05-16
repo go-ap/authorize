@@ -13,6 +13,7 @@ import (
 
 	"git.sr.ht/~mariusor/lw"
 	m "git.sr.ht/~mariusor/servermux"
+	"git.sr.ht/~mariusor/storage-all"
 	w "git.sr.ht/~mariusor/wrapper"
 	"github.com/alecthomas/kong"
 	"github.com/go-ap/authorize"
@@ -74,7 +75,7 @@ func main() {
 		version = build.Main.Version
 	}
 
-	var stores []authorize.FullStorage
+	var stores []storage.FullStorage
 	var err error
 	if len(Auth.Storage) > 0 {
 		if stores, err = loadStoresFromDSNs(Auth.Storage, env, l.WithContext(lw.Ctx{"log": "storage"})); err != nil {
@@ -228,8 +229,8 @@ func main() {
 	ktx.Exit(0)
 }
 
-func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize.FullStorage, error) {
-	stores := make([]authorize.FullStorage, 0)
+func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]storage.FullStorage, error) {
+	stores := make([]storage.FullStorage, 0)
 	errs := make([]error, 0)
 	for _, sto := range dsns {
 		typ, path := config.ParseStorageDSN(sto)
@@ -244,7 +245,7 @@ func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize
 			errs = append(errs, fmt.Errorf("unable to initialize storage backend [%s]%s: %w", typ, path, err))
 			continue
 		}
-		fs, ok := db.(authorize.FullStorage)
+		fs, ok := db.(storage.FullStorage)
 		if !ok {
 			errs = append(errs, fmt.Errorf("invalid storage backend %T [%s]%s", db, typ, path))
 			continue
@@ -258,8 +259,8 @@ func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]authorize
 	return stores, errors.Join(errs...)
 }
 
-func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]authorize.FullStorage, error) {
-	stores := make([]authorize.FullStorage, 0)
+func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]storage.FullStorage, error) {
+	stores := make([]storage.FullStorage, 0)
 	errs := make([]error, 0)
 	for _, p := range paths {
 		if err := godotenv.Load(p); err != nil {
@@ -283,7 +284,7 @@ func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]autho
 			errs = append(errs, fmt.Errorf("unable to initialize storage backend [%s]%s: %w", st.Type, st.Path, err))
 			continue
 		}
-		fs, ok := db.(authorize.FullStorage)
+		fs, ok := db.(storage.FullStorage)
 		if !ok {
 			errs = append(errs, fmt.Errorf("invalid storage backend %T [%s]%s", db, st.Type, st.Path))
 			continue
