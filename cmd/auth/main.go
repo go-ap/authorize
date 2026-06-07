@@ -32,13 +32,7 @@ var Auth struct {
 	CertPath string   `name:"cert-path" help:"SSL cert path for HTTPS." type:"path"`
 	Config   []string `name:"config" help:"Configuration path for .env file" group:"config-options" xor:"config-options"`
 	Storage  []string `name:"storage" help:"Storage DSN strings of form type:///path/to/storage." group:"config-options" xor:"config-options"`
-}
-
-var l = lw.Dev()
-
-type Config struct {
-	Storage string
-	Path    string
+	Verbose  int      `name:"verbose" short:"v" default:"0" type:"counter" help:"Increase verbosity of the log output" `
 }
 
 var defaultTimeout = time.Second * 10
@@ -47,7 +41,7 @@ var version = "HEAD"
 
 type corsLogger func(string, ...any)
 
-func (c corsLogger) Printf(f string, v ...interface{}) {
+func (c corsLogger) Printf(f string, v ...any) {
 	c(f, v...)
 }
 
@@ -55,21 +49,27 @@ func checkOriginForBlockedActors(r *http.Request, origin string) bool {
 	return true
 }
 
+var DefaultLogLevel = lw.WarnLevel
+
 const defaultGraceWait = 1500 * time.Millisecond
 
 func main() {
 	ktx := kong.Parse(
 		&Auth,
-		kong.Bind(l),
 		kong.Vars{
 			"env_types":   strings.Join([]string{string(config.DEV), string(config.PROD)}, ", "),
 			"default_env": string(config.DEV),
 		},
 	)
+	l := lw.Dev(lw.SetLevel(DefaultLogLevel - lw.Level(Auth.Verbose)))
+	ktx.Bind(l)
+
 	env := config.DEV
 	if config.ValidEnv(Auth.Env) {
 		env = config.Env(Auth.Env)
 	}
+
+	errors.SetIncludeBacktrace(!env.IsProd())
 
 	if build, ok := debug.ReadBuildInfo(); ok && version == "HEAD" && build.Main.Version != "(devel)" {
 		version = build.Main.Version
