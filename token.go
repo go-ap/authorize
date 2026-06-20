@@ -27,19 +27,8 @@ type PasswordChanger interface {
 	PasswordCheck(vocab.IRI, []byte) error
 }
 
-type account struct {
-	username string
-	pw       string
-	actor    *vocab.Actor
-}
-
-func (a account) IsLogged() bool {
-	return a.actor != nil && a.actor.PreferredUsername.First().String() == a.username
-}
-
-func (a *account) FromActor(p *vocab.Actor) {
-	a.username = vocab.PreferredNameOf(p)
-	a.actor = p
+func IsLogged(act vocab.Item) bool {
+	return !vocab.IsNil(act) && !auth.AnonymousActor.Equals(act)
 }
 
 type Service struct {
@@ -179,28 +168,18 @@ func iriBaseURL(iri vocab.IRI) string {
 	return u.String()
 }
 
-func checkPw(it vocab.Item, pw []byte, pwLoader PasswordChanger) (*account, error) {
-	acc := new(account)
-	found := false
+func checkPw(it vocab.Item, pw []byte, pwLoader PasswordChanger) (*vocab.Actor, error) {
+	var actor *vocab.Actor
 	err := vocab.OnActor(it, func(p *vocab.Actor) error {
-		if found {
-			return nil
-		}
 		if err := pwLoader.PasswordCheck(p.ID, pw); err == nil {
-			acc.FromActor(p)
-			found = true
+			actor = p
 		}
 		return nil
 	})
-	if !found {
+	if vocab.IsNil(actor) {
 		return nil, errUnauthorized
 	}
-	return acc, err
-}
-
-var AnonymousAcct = account{
-	username: "anonymous",
-	actor:    &auth.AnonymousActor,
+	return actor, err
 }
 
 func iriFromUserData(raw any) (vocab.IRI, error) {
@@ -224,7 +203,6 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	}
 	baseIRI := app.GetLink()
 
-	acc := &AnonymousAcct
 	osrv := s.auth(repo)
 
 	if id := r.FormValue(clientIdKey); id != "" {
@@ -328,23 +306,8 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 
 		switch ar.Type {
 		case osin.PASSWORD:
-			if actor.IsCollection() {
-				err = vocab.OnCollectionIntf(actor, func(col vocab.CollectionInterface) error {
-					// NOTE(marius): This is a stupid way of doing pw authentication, as it will produce collisions
-					//  for users with the same handle/pw and it will login the first in the collection.
-					for _, actor := range col.Collection() {
-						acc, err = checkPw(actor, []byte(ar.Password), repo)
-						if err == nil {
-							return nil
-						}
-					}
-					return errors.Newf("No actor matched the password")
-				})
-			} else {
-				acc, err = checkPw(actor, []byte(ar.Password), repo)
-			}
-			actorCtx["handle"] = vocab.PreferredNameOf(actor)
-			if err != nil || acc == nil {
+			actor, err = checkPw(actor, []byte(ar.Password), repo)
+			if err != nil || vocab.IsNil(actor) {
 				if err == nil {
 					err = errUnauthorized
 				}
@@ -352,14 +315,13 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				s.redirectOrOutput(resp, w, r)
 				return
 			}
-			ar.Authorized = acc.IsLogged()
-			ar.UserData = acc.actor.GetLink()
+			actorCtx["handle"] = vocab.PreferredNameOf(actor)
+			ar.Authorized = IsLogged(actor)
+			ar.UserData = actor.GetLink()
 		case osin.CLIENT_CREDENTIALS, osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
 			_ = vocab.OnActor(actor, func(p *vocab.Actor) error {
-				acc = new(account)
-				acc.FromActor(p)
-				ar.Authorized = acc.IsLogged()
-				ar.UserData = acc.actor.GetLink()
+				ar.Authorized = IsLogged(p)
+				ar.UserData = p.GetLink()
 				return nil
 			})
 		}

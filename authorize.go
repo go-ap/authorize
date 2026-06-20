@@ -184,6 +184,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	app, repo, err := s.findMatchingStorage(baseURL(r)...)
 	if IsValidRequest(r) {
 		clientActor, err := s.ValidateOrCreateClient(r)
 		if err != nil {
@@ -268,18 +269,28 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		handle := r.PostFormValue("handle")
+		ltx["handle"] = handle
 		if vocab.IsNil(actor) {
-			if acc, err := s.loadAccountFromPost(r); err == nil {
-				actor = acc.actor
+			if actor, err = loadActorFromPost(repo, app.GetLink(), handle); err != nil {
+				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
+				s.Logger.WithContext(ltx, lw.Ctx{"err": err.Error()}).Warnf("failed to load actor")
 			}
+		}
+		pw := r.PostFormValue("pw")
+		ltx["pw"] = mask.S(pw)
+		if acc, err := checkPw(actor, []byte(pw), repo); err != nil {
+			s.Logger.WithContext(ltx, lw.Ctx{"error": err.Error()}).Warnf("wrong password")
+			actor = nil
+		} else {
+			ltx["actor"] = acc.ID
+			actor = acc
 		}
 		if vocab.IsNil(actor) || vocab.PreferredNameOf(actor) != handle {
 			resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
-			s.Logger.WithContext(ltx).Errorf("Authorization failed")
 		} else {
 			ar.Authorized = true
 			ar.UserData = actor.GetLink()
-			ltx["handle"] = vocab.PreferredNameOf(actor)
+			s.Logger.WithContext(ltx).Debugf("login successful")
 		}
 	}
 
@@ -288,13 +299,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 		resp.Type = osin.DATA
 	}
 	ltx["redirect_uri"] = resp.URL
-	logFn := s.Logger.WithContext(ltx).Warnf
 	ltx["authorized"] = ar.Authorized
 	ltx["state"] = ar.State
 	if ar.CodeChallengeMethod != "" {
 		ltx["code_challenge_method"] = ar.CodeChallengeMethod
 		ltx["code_challenge"] = ar.CodeChallenge
 	}
+	logFn := s.Logger.WithContext(ltx).Warnf
 	if ar.Authorized {
 		logFn = s.Logger.WithContext(ltx).Infof
 	}
@@ -302,38 +313,23 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	s.redirectOrOutput(resp, w, r)
 }
 
-func (s *Service) loadAccountFromPost(r *http.Request) (*account, error) {
-	pw := r.PostFormValue("pw")
-	handle := r.PostFormValue("handle")
-
-	app, repo, err := s.findMatchingStorage(baseURL(r)...)
-	if err != nil {
-		return nil, err
-	}
-	baseIRI := app.GetLink()
-
+func loadActorFromPost(repo storage.FullStorage, baseIRI vocab.IRI, handle string) (vocab.Item, error) {
 	searchIRI := SearchActorsIRI(baseIRI, ByName(handle), ByType(vocab.PersonType))
-	actors, err := repo.Load(searchIRI, filters.NameIs(handle), filters.HasType(vocab.PersonType))
+	result, err := repo.Load(searchIRI, filters.NameIs(handle), filters.HasType(vocab.PersonType))
 	if err != nil {
 		return nil, errUnauthorized
 	}
-	_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
-		actors = col.Collection()
+
+	var maybeActor vocab.Item
+	err = vocab.OnCollectionIntf(result, func(col vocab.CollectionInterface) error {
+		if len(col.Collection()) == 1 {
+			maybeActor = col.Collection().First()
+		} else {
+			maybeActor = col.Collection()
+		}
 		return nil
 	})
-
-	var act *account
-	var logger = s.Logger.WithContext(lw.Ctx{
-		"handle": handle,
-		"pass":   mask.S(pw).String(),
-	})
-	if act, err = checkPw(actors, []byte(pw), repo); err != nil {
-		logger.WithContext(lw.Ctx{"error": err.Error()}).Errorf("failed")
-		return nil, err
-	}
-
-	logger.Infof("Login success")
-	return act, nil
+	return maybeActor, err
 }
 
 func reqUrl(r *http.Request) string {
