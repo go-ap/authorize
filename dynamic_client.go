@@ -69,7 +69,7 @@ func GenerateBasicClientRegistrationRequest(clientID vocab.IRI, redirect []strin
 }
 
 func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationRequest, clientID vocab.IRI) *vocab.Actor {
-	now := time.Now().Truncate(time.Second).UTC()
+	now := time.Now().Truncate(time.Millisecond).UTC()
 
 	urls := make(vocab.ItemCollection, 0, 3)
 	_ = urls.Append(vocab.IRI(clientRequest.ClientURI))
