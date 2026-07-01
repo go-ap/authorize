@@ -62,7 +62,7 @@ func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
 func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 	actor := s.loadActorFromOauth2Session(w, r)
 	if actor == nil {
-		s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+		s.HandleError(errors.BadRequestf("Unable to load actor from session")).ServeHTTP(w, r)
 		return
 	}
 
@@ -80,7 +80,7 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !act.GetID().Equals(actor.GetID(), true) {
-			s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+			s.HandleError(errors.Unauthorizedf("Unable to load actor from session")).ServeHTTP(w, r)
 			return
 		}
 	}
@@ -98,7 +98,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	actor := s.loadActorFromOauth2Session(w, r)
 	if actor == nil {
 		s.Logger.Errorf("Unable to load actor from session")
-		s.HandleError(errors.NotValidf("Unable to load actor from session")).ServeHTTP(w, r)
+		s.HandleError(errors.Unauthorizedf("Unable to load actor from session")).ServeHTTP(w, r)
 		return
 	}
 	tok := r.URL.Query().Get("s")
@@ -117,7 +117,7 @@ func (s *Service) HandleChangePw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = storage.PasswordSet(actor.ID, []byte(pw)); err != nil {
-		s.HandleError(errors.NotValidf("Unable to change password")).ServeHTTP(w, r)
+		s.HandleError(errors.Newf("Unable to change password")).ServeHTTP(w, r)
 		return
 	}
 

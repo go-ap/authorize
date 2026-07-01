@@ -181,7 +181,7 @@ func (s *Service) ClientRegistration(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil || len(body) == 0 {
-		s.HandleError(errors.NewNotValid(err, "unable to read request body")).ServeHTTP(w, r)
+		s.HandleError(errors.NewBadRequest(err, "unable to read request body")).ServeHTTP(w, r)
 		return
 	}
 
