@@ -97,13 +97,15 @@ func main() {
 
 	r := chi.NewMux()
 
-	baseClient := authorize.Client(version)
+	ua := fmt.Sprintf("GoActivityPub//authorize (+github.com/go-ap/authorize@%s)", version)
+	baseClient := authorize.Client()
 	h := authorize.Service{
 		Stores: stores,
 		Client: client.New(
 			client.WithHTTPClient(baseClient),
 			client.WithLogger(l.WithContext(lw.Ctx{"log": "client"})),
 			client.SkipTLSValidation(!env.IsProd()),
+			client.WithUserAgent(ua),
 		),
 		Logger: l.WithContext(lw.Ctx{"log": "auth"}),
 	}
