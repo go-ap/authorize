@@ -69,8 +69,6 @@ func main() {
 		env = config.Env(Auth.Env)
 	}
 
-	errors.SetIncludeBacktrace(!env.IsProd())
-
 	if build, ok := debug.ReadBuildInfo(); ok && version == "HEAD" && build.Main.Version != "(devel)" {
 		version = build.Main.Version
 	}
