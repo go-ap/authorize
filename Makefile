@@ -16,11 +16,12 @@ TEST_FLAGS ?= -count=1 -tags "$(TAGS)"
 
 UPX = upx
 GO ?= go
-APPSOURCES := $(wildcard ./*.go cmd/auth/*.go)
+APPSOURCES := $(wildcard ./*.go cmd/auth/*.go internal/assets/*)
+ASSETFILES := $(wildcard internal/assets/templates/* assets/*)
 
 TAGS := $(ENV)
 ifneq ($(STORAGE), )
-	TAGS +=  storage_$(STORAGE)
+	TAGS += storage_$(STORAGE)
 endif
 
 export CGO_ENABLED=0
@@ -43,7 +44,7 @@ endif
 BUILD := $(GO) build $(BUILDFLAGS)
 TEST := $(GO) test $(BUILDFLAGS)
 
-.PHONY: all auth cert clean test coverage download help
+.PHONY: all auth cert clean test coverage download help compress
 
 .DEFAULT_GOAL := help
 
@@ -59,10 +60,12 @@ go.sum: go.mod
 	$(GO) mod tidy
 
 auth: bin/auth ## Builds the main Authorization service binary.
-bin/auth: go.mod go.sum $(APPSOURCES)
+bin/auth: go.mod go.sum $(APPSOURCES) $(ASSETFILES)
 	$(BUILD) -o $@ ./cmd/auth
+
+compress: bin/auth ## Compress the binary.
 ifneq ($(ENV),dev)
-	$(UPX) -q --mono --no-progress --best $@ || true
+	$(UPX) -q --mono --no-progress --best $< || true
 endif
 
 clean: ## Cleanup the build workspace.
