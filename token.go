@@ -2,8 +2,10 @@ package authorize
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"html/template"
 	"io"
 	"net/http"
@@ -399,6 +401,7 @@ func (s *Service) redirectOrOutput(rs *osin.Response, w http.ResponseWriter, r *
 
 type model interface {
 	Title() string
+	Server() vocab.Item
 }
 
 type authModel interface {
@@ -441,6 +444,47 @@ var (
 	unknownActorHandle = "Unknown"
 )
 
+func getBinData(nlVal vocab.NaturalLanguageValues, mt vocab.MimeType) (string, []byte, error) {
+	val := nlVal.First()
+
+	contentType := "application/octet-stream"
+	if mt != "" {
+		contentType = string(mt)
+	}
+	colPos := max(bytes.Index(val, []byte{':'}), 0)
+	semicolPos := bytes.Index(val, []byte{';'})
+	if semicolPos > 0 {
+		contentType = string(val[colPos+1 : semicolPos])
+	}
+	comPos := bytes.Index(val, []byte{','})
+	var raw []byte
+	if semicolPos > 0 && comPos > 0 {
+		decType := val[semicolPos+1 : comPos]
+
+		switch string(decType) {
+		case "base64":
+			data := val[comPos+1:]
+
+			dec := base64.RawStdEncoding
+			raw = make([]byte, dec.DecodedLen(len(data)))
+			cnt, err := dec.Decode(raw, data)
+			if err != nil {
+				return contentType, raw, err
+			}
+			if cnt != len(data) {
+				// something wrong
+			}
+		}
+	} else {
+		raw = val
+	}
+
+	return contentType, raw, nil
+}
+
+const inlineSVGFmt = `<svg><use xlink:href="%s"><title>%s</title></use></svg>`
+const inlineImgFmt = `<img src="%s" title="%s" />`
+
 func iconOf(it vocab.Item) template.HTML {
 	if vocab.IsNil(it) {
 		return ""
@@ -452,19 +496,32 @@ func iconOf(it vocab.Item) template.HTML {
 		}
 		return nil
 	})
+
+	isSvg := false
 	var u string
 	if vocab.IsIRI(icon) {
 		u = icon.GetLink().String()
 	} else {
 		_ = vocab.OnObject(icon, func(ob *vocab.Object) error {
 			u = ob.URL.GetLink().String()
+			if ob.MediaType == "image/svg+xml" && ob.Content != nil {
+				//isSvg = true
+				_, bin, _ := getBinData(ob.Content, ob.MediaType)
+				if bin != nil {
+					u = "data:" + string(ob.MediaType) + ";," + html.EscapeString(string(bin))
+				}
+			}
 			return nil
 		})
 	}
-	if len(u) > 0 {
-		return template.HTML(fmt.Sprintf(`<img src="%s" />`, u))
+	if len(u) == 0 {
+		return ""
 	}
-	return ""
+	name := vocab.PreferredNameOf(it)
+	if isSvg {
+		return template.HTML(fmt.Sprintf(inlineSVGFmt, u, name))
+	}
+	return template.HTML(fmt.Sprintf(inlineImgFmt, u, name))
 }
 
 func redirectUri(r *http.Request) func() string {

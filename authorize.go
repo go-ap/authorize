@@ -147,6 +147,7 @@ func (s *Service) ValidateOrCreateClient(r *http.Request) (*vocab.Actor, error) 
 type login struct {
 	title   string
 	account vocab.Item
+	server  vocab.Item
 	state   string
 	client  vocab.Item
 }
@@ -167,7 +168,30 @@ func (l login) Client() vocab.Item {
 	return l.client
 }
 
+func (l login) Server() vocab.Item {
+	return l.server
+}
+
 var scopeAnonymousUserCreate = "anonUserCreate"
+
+func loadClientWithDetails(loader storage.ReadStore, iri vocab.IRI) (vocab.Item, error) {
+	// NOTE(marius): try to load based on client.ID as an IRI:
+	it, err := loader.Load(vocab.IRI(iri))
+	if err != nil {
+		return nil, err
+	}
+
+	_ = vocab.OnObject(it, func(ob *vocab.Object) error {
+		if !vocab.IsNil(ob.Icon) && vocab.IsIRI(ob.Icon) {
+			ob.Icon, _ = loader.Load(ob.Icon.GetLink())
+		}
+		if !vocab.IsNil(ob.Image) && vocab.IsIRI(ob.Image) {
+			ob.Image, _ = loader.Load(ob.Image.GetLink())
+		}
+		return nil
+	})
+	return it, nil
+}
 
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.authFromRequest(r)
@@ -233,12 +257,13 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			// this is basically the login page, with client being set
 			m := login{title: "Login"}
 			m.account = actor
+			m.server = app
 
 			var it vocab.Item
 			// check for existing application actor
 			for _, baseIRI := range baseURL(r) {
 				// NOTE(marius): try to load based on client.ID as an IRI:
-				it, _ = loader.Load(vocab.IRI(ar.Client.GetId()))
+				it, _ = loadClientWithDetails(loader, vocab.IRI(ar.Client.GetId()))
 				if !vocab.IsNil(it) {
 					m.client = it
 					m.state = ar.State
@@ -249,8 +274,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 					if u, err := url.ParseRequestURI(ar.Client.GetId()); err == nil && u.Host != "" {
 						clientIRI = vocab.IRI(ar.Client.GetId())
 					}
-
-					it, _ = loader.Load(clientIRI)
+					it, _ = loadClientWithDetails(loader, clientIRI)
 					if !vocab.IsNil(it) {
 						m.client = it
 						m.state = ar.State

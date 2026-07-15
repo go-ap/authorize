@@ -7,17 +7,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="theme-color" content="rebeccapurple" />
     <meta name="color-scheme" content="dark light">
-</head>
-<body>
-<header><h1>Fed::BOX</h1></header>
+    <style>
+        img, svg { max-height: 1.2rem; margin: 0 0 -.2rem .2rem; background-color: contrast-color(Window); aspect-ratio: 1/1; }
+        fieldset { max-width: fit-content; }
+    </style>
+{{- $server := nameOf .Server -}}
 {{- $handle := nameOf .Account -}}
 {{- $client := nameOf .Client -}}
 {{- $icon := iconOf .Client -}}
+</head>
+<body>
+<header><h1>{{- $server -}}</h1></header>
 <main>
-    Authorization request from client <strong>{{ $client }}</strong>.<br/>
-    {{- $icon }}
     <form method="post">
         <fieldset>
+            <h3>New authorization request from client<br/>
+                <strong>{{- $icon }} {{ $client }}</strong></h3>
+            <hr/>
             <input type="hidden" name="state" value="{{.State}}" />
             <input type="hidden" name="client" value="{{.Client.ID}}" />
             <label for="auth-handle">Handle:</label><br/>

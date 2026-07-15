@@ -17,6 +17,7 @@ import (
 type pwChange struct {
 	title   string
 	account vocab.Item
+	server  vocab.Item
 }
 
 func (p pwChange) Title() string {
@@ -25,6 +26,10 @@ func (p pwChange) Title() string {
 
 func (p pwChange) Account() vocab.Item {
 	return p.account
+}
+
+func (p pwChange) Server() vocab.Item {
+	return p.server
 }
 
 func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
@@ -88,6 +93,7 @@ func (s *Service) ShowChangePw(w http.ResponseWriter, r *http.Request) {
 	m := pwChange{
 		title:   "Change password",
 		account: *actor,
+		server:  app,
 	}
 
 	s.renderTemplate(r, w, "password", m)

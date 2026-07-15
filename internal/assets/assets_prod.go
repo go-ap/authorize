@@ -1,4 +1,4 @@
-//go:build prod || qa
+//go:build !dev
 
 package assets
 
