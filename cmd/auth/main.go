@@ -56,7 +56,10 @@ const defaultGraceWait = 1500 * time.Millisecond
 func main() {
 	ktx := kong.Parse(
 		&Auth,
+		kong.Description("${name} server (version ${version})"),
 		kong.Vars{
+			"name":        "authorize",
+			"version":     version,
 			"env_types":   strings.Join([]string{string(config.DEV), string(config.PROD)}, ", "),
 			"default_env": string(config.DEV),
 		},
