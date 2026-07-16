@@ -587,14 +587,13 @@ func baseURL(r *http.Request) []string {
 	if r == nil {
 		return nil
 	}
-	up := "/"
 
 	// NOTE(marius): due to the fact that the Authorize server runs behind a proxy which handles the TLS termination,
 	// we can't rely on the request's TLS property to determine the scheme for our URL,
 	// so we generate two base URLs, one for each scheme.
 	return []string{
-		fmt.Sprintf("http://%s%s", r.Host, up),
-		fmt.Sprintf("https://%s%s", r.Host, up),
+		fmt.Sprintf("http://%s", r.Host),
+		fmt.Sprintf("https://%s", r.Host),
 	}
 }
 
