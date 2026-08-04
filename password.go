@@ -45,7 +45,7 @@ func (s *Service) loadAccountByID(iri vocab.IRI) (*vocab.Actor, error) {
 	if actors == nil {
 		return nil, errNotFound
 	}
-	if actors.IsCollection() {
+	if vocab.IsCollection(actors) {
 		_ = vocab.OnCollectionIntf(actors, func(col vocab.CollectionInterface) error {
 			actors = col.Collection()
 			return nil

@@ -70,7 +70,7 @@ func generateID(it vocab.Item, partOf vocab.IRI, by vocab.Item, uid uuid.UUID) (
 		})
 		return id, err
 	}
-	if it.IsLink() {
+	if vocab.IsLink(it) {
 		return id, vocab.OnLink(it, func(l *vocab.Link) error {
 			l.ID = id
 			return nil
