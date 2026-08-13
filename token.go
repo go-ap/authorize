@@ -309,6 +309,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 
 		if actorHasBlockedClient(repo, actor, clientActor) {
 			s.Logger.WithContext(lw.Ctx{"actor": actor.GetID(), "client": clientActor.ID}).Warnf("client is blocked by actor")
+			resp.SetRedirect(ar.RedirectUri)
 			resp.SetError(osin.E_INVALID_REQUEST, "invalid client for actor")
 			s.redirectOrOutput(resp, w, r)
 			return
@@ -321,6 +322,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 				if err == nil {
 					err = errUnauthorized
 				}
+				resp.SetRedirect(ar.RedirectUri)
 				resp.SetError(osin.E_ACCESS_DENIED, err.Error())
 				s.redirectOrOutput(resp, w, r)
 				return

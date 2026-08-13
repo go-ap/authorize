@@ -247,18 +247,20 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if actorHasBlockedClient(loader, actor, clientActor) {
-		s.Logger.WithContext(lw.Ctx{"actor": actor.GetID(), "client": clientActor.ID}).Warnf("client is blocked by actor")
-		resp.SetError(osin.E_INVALID_REQUEST, "invalid client for actor")
-		s.redirectOrOutput(resp, w, r)
-		return
-	}
 
 	ltx := lw.Ctx{}
 	var overrideRedir = false
 
 	ar := a.HandleAuthorizeRequest(resp, r)
 	if ar == nil {
+		s.redirectOrOutput(resp, w, r)
+		return
+	}
+
+	if actorHasBlockedClient(loader, actor, clientActor) {
+		s.Logger.WithContext(lw.Ctx{"actor": actor.GetID(), "client": clientActor.ID}).Warnf("client is blocked by actor")
+		resp.SetRedirect(ar.RedirectUri)
+		resp.SetError(osin.E_INVALID_REQUEST, "invalid client for actor")
 		s.redirectOrOutput(resp, w, r)
 		return
 	}
@@ -306,6 +308,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if vocab.IsNil(it) {
+				resp.SetRedirect(ar.RedirectUri)
 				resp.SetError(osin.E_INVALID_REQUEST, fmt.Sprintf("invalid client: %s", ar.Client.GetId()))
 				s.redirectOrOutput(resp, w, r)
 				return
