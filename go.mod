@@ -13,7 +13,7 @@ require (
 	github.com/elnormous/contenttype v1.0.4
 	github.com/go-ap/auth v0.0.0-20260811144108-c1614f43d394
 	github.com/go-ap/errors v0.0.0-20260701132509-92e5e4fd6394
-	github.com/go-ap/processing v0.0.0-20260811144204-601debf29e82
+	github.com/go-ap/processing v0.0.0-20260812082402-314ccde95b89
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/cors v1.2.2
 )

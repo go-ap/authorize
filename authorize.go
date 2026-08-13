@@ -193,9 +193,22 @@ func loadClientWithDetails(loader storage.ReadStore, iri vocab.IRI) (vocab.Item,
 	return it, nil
 }
 
+func actorHasBlockedClient(loader storage.ReadStore, actor vocab.Item, client *vocab.Actor) bool {
+	blocked := filters.BlockedType.IRI(actor.GetLink())
+	it, _ := loader.Load(blocked)
+
+	result := false
+	_ = vocab.OnCollectionIntf(it, func(col vocab.CollectionInterface) error {
+		result = col.Collection().Contains(client.ID)
+		return nil
+	})
+	return result
+}
+
 func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	a, err := s.authFromRequest(r)
 	if err != nil {
+		s.Logger.WithContext(lw.Ctx{"err": err}).Errorf("failed to load root actor from request")
 		s.HandleError(err).ServeHTTP(w, r)
 		return
 	}
@@ -209,8 +222,10 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app, repo, err := s.findMatchingStorage(baseURL(r)...)
+
+	var clientActor *vocab.Actor
 	if IsValidRequest(r) {
-		clientActor, err := s.ValidateOrCreateClient(r)
+		clientActor, err = s.ValidateOrCreateClient(r)
 		if err != nil {
 			resp.SetError(osin.E_INVALID_REQUEST, err.Error())
 			s.redirectOrOutput(resp, w, r)
@@ -225,10 +240,18 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 			actorUrl.Path = actorUrl.Path[:strings.Index(actorUrl.Path, "/oauth")]
 			actorUrl.RawQuery = ""
 			actorUrl.Fragment = ""
-			if it, err := loader.Load(vocab.IRI(actorUrl.String())); err == nil {
+
+			actorIRI := vocab.IRI(actorUrl.String())
+			if it, err := loader.Load(actorIRI); err == nil {
 				actor = it
 			}
 		}
+	}
+	if actorHasBlockedClient(loader, actor, clientActor) {
+		s.Logger.WithContext(lw.Ctx{"actor": actor.GetID(), "client": clientActor.ID}).Warnf("client is blocked by actor")
+		resp.SetError(osin.E_INVALID_REQUEST, "invalid client for actor")
+		s.redirectOrOutput(resp, w, r)
+		return
 	}
 
 	ltx := lw.Ctx{}

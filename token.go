@@ -206,6 +206,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	baseIRI := app.GetLink()
 
 	osrv := s.auth(repo)
+	var clientActor *vocab.Actor
 
 	if id := r.FormValue(clientIdKey); id != "" {
 		client, err := url.QueryUnescape(id)
@@ -232,7 +233,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// check for existing application actor
-		clientActor, _ := LoadClientActorByID(repo, app, vocab.IRI(basicAuth.Username))
+		clientActor, _ = LoadClientActorByID(repo, app, vocab.IRI(basicAuth.Username))
 		if vocab.IsNil(clientActor) {
 			// NOTE(marius): if we were unable to find any local client matching ClientID,
 			// we attempt a OAuth Client ID Metadata Document based client registration mechanism.
@@ -303,6 +304,13 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			s.Logger.Errorf("%+s", err)
 			s.HandleError(errNotFound).ServeHTTP(w, r)
+			return
+		}
+
+		if actorHasBlockedClient(repo, actor, clientActor) {
+			s.Logger.WithContext(lw.Ctx{"actor": actor.GetID(), "client": clientActor.ID}).Warnf("client is blocked by actor")
+			resp.SetError(osin.E_INVALID_REQUEST, "invalid client for actor")
+			s.redirectOrOutput(resp, w, r)
 			return
 		}
 
@@ -544,7 +552,6 @@ var (
 )
 
 func (s *Service) HandleError(e error) http.HandlerFunc {
-	s.Logger.Errorf("%s", e)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if errors.IsNotFound(e) {
 			e = errNotFound
