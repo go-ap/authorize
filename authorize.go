@@ -199,7 +199,7 @@ func actorHasBlockedClient(loader storage.ReadStore, actor vocab.Item, client *v
 
 	result := false
 	_ = vocab.OnCollectionIntf(it, func(col vocab.CollectionInterface) error {
-		result = col.Collection().Contains(client.ID)
+		result = col.Collection().IRIs().Contains(client.ID)
 		return nil
 	})
 	return result
