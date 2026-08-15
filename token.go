@@ -290,8 +290,9 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			actorSearchIRI = vocab.IRI(ar.Client.GetId())
 		case osin.AUTHORIZATION_CODE, osin.REFRESH_TOKEN:
 			if actorSearchIRI, err = iriFromUserData(ar.UserData); err != nil {
-				s.Logger.Errorf("%+s", err)
-				s.HandleError(errNotFound).ServeHTTP(w, r)
+				s.Logger.WithContext(actorCtx, lw.Ctx{"err": err}).Errorf("unable to find actor")
+				resp.SetRedirect(ar.RedirectUri)
+				s.redirectOrOutput(resp, w, r)
 				return
 			}
 			actorCtx = lw.Ctx{
@@ -302,8 +303,9 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 
 		actor, err := repo.Load(actorSearchIRI)
 		if err != nil {
-			s.Logger.Errorf("%+s", err)
-			s.HandleError(errNotFound).ServeHTTP(w, r)
+			s.Logger.WithContext(actorCtx, lw.Ctx{"err": err}).Errorf("unable to find actor ")
+			resp.SetRedirect(ar.RedirectUri)
+			s.redirectOrOutput(resp, w, r)
 			return
 		}
 
