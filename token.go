@@ -19,6 +19,7 @@ import (
 	"github.com/go-ap/auth"
 	"github.com/go-ap/authorize/internal/assets"
 	"github.com/go-ap/errors"
+	"github.com/go-ap/filters"
 	"github.com/mariusor/render"
 	"github.com/openshift/osin"
 	"github.com/pborman/uuid"
@@ -265,6 +266,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 	resp := osrv.NewResponse()
 	if ar := osrv.HandleAccessRequest(resp, r); ar != nil {
 		var actorSearchIRI vocab.IRI
+		var ff filters.Checks
 		var actorCtx lw.Ctx
 		authCtx := lw.Ctx{
 			"grant_type": ar.Type,
@@ -280,7 +282,11 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 					"pass":  mask.S(ar.Password).String(),
 				}
 			} else {
-				actorSearchIRI = SearchActorsIRI(baseIRI, ByName(ar.Username))
+				actorSearchIRI = vocab.Outbox.IRI(baseIRI)
+				ff = filters.Checks{
+					filters.HasType(vocab.CreateType),
+					filters.Object(filters.PreferredUsernameIs(ar.Username), filters.HasType(vocab.ActorTypes...)),
+				}
 				actorCtx = lw.Ctx{
 					"handle": ar.Username,
 					"actor":  actorSearchIRI,
@@ -301,7 +307,7 @@ func (s *Service) Token(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		actor, err := repo.Load(actorSearchIRI)
+		actor, err := LoadActor(repo, actorSearchIRI, ff...)
 		if err != nil {
 			s.Logger.WithContext(actorCtx, lw.Ctx{"err": err}).Errorf("unable to find actor ")
 			resp.SetRedirect(ar.RedirectUri)

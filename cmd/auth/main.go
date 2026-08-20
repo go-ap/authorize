@@ -80,12 +80,12 @@ func main() {
 	var err error
 	if len(Auth.Storage) > 0 {
 		if stores, err = loadStoresFromDSNs(Auth.Storage, env, l.WithContext(lw.Ctx{"log": "storage"})); err != nil {
-			l.Errorf("Errors loading storage paths: %+s", err)
+			l.Errorf("Errors loading storage paths: %v", err)
 		}
 	}
 	if len(Auth.Config) > 0 {
 		if stores, err = loadStoresFromConfigs(Auth.Config, env, l.WithContext(lw.Ctx{"log": "storage"})); err != nil {
-			l.Errorf("Errors loading config files: %+s", err)
+			l.Errorf("Errors loading config files: %v", err)
 		}
 	}
 	if err != nil {
@@ -254,7 +254,7 @@ func loadStoresFromDSNs(dsns []string, env config.Env, l lw.Logger) ([]storage.F
 			continue
 		}
 		if err = fs.Open(); err != nil {
-			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s", db, typ, path))
+			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s: %w", db, typ, path, err))
 			continue
 		}
 		stores = append(stores, fs)
@@ -293,7 +293,7 @@ func loadStoresFromConfigs(paths []string, env config.Env, l lw.Logger) ([]stora
 			continue
 		}
 		if err = fs.Open(); err != nil {
-			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s", db, st.Type, st.Path))
+			errs = append(errs, fmt.Errorf("unable to open storage backend %T [%s]%s: %w", db, st.Type, st.Path, err))
 			continue
 		}
 		stores = append(stores, fs)

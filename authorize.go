@@ -320,7 +320,7 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	} else {
 		handle := r.PostFormValue("handle")
 		ltx["handle"] = handle
-		if vocab.IsNil(actor) {
+		if vocab.IsNil(actor) || vocab.PublicNS.Equal(actor.GetID()) {
 			if actor, err = loadActorFromPost(repo, app.GetLink(), handle); err != nil {
 				resp.SetError(osin.E_ACCESS_DENIED, "authorization failed")
 				s.Logger.WithContext(ltx, lw.Ctx{"err": err.Error()}).Warnf("failed to load actor")
@@ -363,23 +363,38 @@ func (s *Service) Authorize(w http.ResponseWriter, r *http.Request) {
 	s.redirectOrOutput(resp, w, r)
 }
 
+func LoadActor(repo storage.FullStorage, iri vocab.IRI, ff ...filters.Check) (vocab.Item, error) {
+	actor, err := repo.Load(iri, ff...)
+	if err != nil {
+		return nil, err
+	}
+	if vocab.IsCollection(actor) {
+		err = vocab.OnCollectionIntf(actor, func(col vocab.CollectionInterface) error {
+			return vocab.OnItem(col.Collection(), func(it vocab.Item) error {
+				if vocab.CreateType.Match(it.GetType()) {
+					return vocab.OnActivity(it, func(create *vocab.Activity) error {
+						actor = create.Actor
+						return nil
+					})
+				}
+				actor = it
+				return nil
+			})
+		})
+	}
+	if vocab.IsIRI(actor) {
+		actor, err = repo.Load(actor.GetLink())
+	}
+	return actor, err
+}
+
 func loadActorFromPost(repo storage.FullStorage, baseIRI vocab.IRI, handle string) (vocab.Item, error) {
-	searchIRI := SearchActorsIRI(baseIRI, ByName(handle), ByType(vocab.PersonType))
-	result, err := repo.Load(searchIRI, filters.NameIs(handle), filters.HasType(vocab.PersonType))
+	ff := filters.Checks{filters.HasType(vocab.CreateType), filters.Object(filters.NameIs(handle), filters.HasType(vocab.ActorTypes...))}
+	actor, err := LoadActor(repo, vocab.Outbox.IRI(baseIRI), ff...)
 	if err != nil {
 		return nil, errUnauthorized
 	}
-
-	var maybeActor vocab.Item
-	err = vocab.OnCollectionIntf(result, func(col vocab.CollectionInterface) error {
-		if len(col.Collection()) == 1 {
-			maybeActor = col.Collection().First()
-		} else {
-			maybeActor = col.Collection()
-		}
-		return nil
-	})
-	return maybeActor, err
+	return actor, nil
 }
 
 func reqUrl(r *http.Request) string {
