@@ -1,19 +1,19 @@
 module github.com/go-ap/authorize
 
-go 1.25.12
+go 1.26.0
 
 require (
 	git.sr.ht/~mariusor/cache v0.0.0-20260516133819-5427e9c3067b
 	git.sr.ht/~mariusor/lw v0.0.0-20260818081520-a466820a662e
 	git.sr.ht/~mariusor/mask v0.0.0-20250114195353-98705a6977b7
 	git.sr.ht/~mariusor/servermux v0.0.0-20260730181755-b356bceeedee
-	git.sr.ht/~mariusor/storage-all v0.0.0-20260820130303-7a76d4ac89a2
+	git.sr.ht/~mariusor/storage-all v0.0.0-20260821132307-15983a538b35
 	git.sr.ht/~mariusor/wrapper v0.0.0-20260103185140-9873830de009
 	github.com/alecthomas/kong v1.15.0
 	github.com/elnormous/contenttype v1.0.4
 	github.com/go-ap/auth v0.0.0-20260819155025-62ee7ff67617
 	github.com/go-ap/errors v0.0.0-20260701132509-92e5e4fd6394
-	github.com/go-ap/processing v0.0.0-20260819171027-278060c1403f
+	github.com/go-ap/processing v0.0.0-20260820141248-53dd0ec91510
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/cors v1.2.2
 )
@@ -29,7 +29,7 @@ require (
 	github.com/RoaringBitmap/roaring v1.9.4 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/bits-and-blooms/bitset v1.25.0 // indirect
-	github.com/carlmjohnson/requests v0.25.1 // indirect
+	github.com/carlmjohnson/requests v0.26.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/keygen v0.5.4 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/go-ap/storage-boltdb v0.0.0-20260820095804-1e83ad8b00f1 // indirect
 	github.com/go-ap/storage-fs v0.0.0-20260820095514-95b09ce756a2 // indirect
 	github.com/go-ap/storage-pg v0.0.0-20260820102625-f55a37e7b178 // indirect
-	github.com/go-ap/storage-sqlite v0.0.0-20260820095726-f1799f2e0db9 // indirect
+	github.com/go-ap/storage-sqlite v0.0.0-20260821132105-2b7b1e104e76 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
@@ -99,7 +99,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
-	golang.org/x/exp v0.0.0-20260820122028-d6e0b57b1a69 // indirect
+	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
@@ -107,7 +107,7 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
-	modernc.org/libc v1.75.3 // indirect
+	modernc.org/libc v1.75.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.57.0 // indirect
