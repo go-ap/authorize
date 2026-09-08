@@ -64,7 +64,7 @@ func main() {
 			"default_env": string(config.DEV),
 		},
 	)
-	l := lw.Dev(lw.SetLevel(DefaultLogLevel - lw.Level(Auth.Verbose)))
+	l := lw.Dev(lw.SetLevel(DefaultLogLevel - lw.Level(4*Auth.Verbose)))
 	ktx.Bind(l)
 
 	env := config.DEV
