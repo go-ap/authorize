@@ -102,6 +102,7 @@ func GeneratedClientActor(author vocab.Item, clientRequest ClientRegistrationReq
 	if clientRequest.LogoURI != "" {
 		clientActor.Icon = vocab.IRI(clientRequest.LogoURI)
 	}
+	clientActor.Outbox = vocab.Outbox.IRI(clientActor.ID)
 
 	return &clientActor
 }
